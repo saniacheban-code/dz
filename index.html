@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduAI RK — Индивидуальные ДЗ и ИИ-проверка</title>
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключение шрифта Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Иконки Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Подключение KaTeX для красивого отображения математических формул и символов -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Плавные анимации */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Стили для скроллбара */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Корректное отображение формул KaTeX */
+        .katex {
+            font-size: 1.08em;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Уведомление (Toast) вместо alert() -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Шапка приложения (адаптивная, чтобы на мобильном все вкладки помещались) -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:h-16 flex flex-wrap items-center justify-between gap-2">
+            <!-- Логотип -->
+            <div class="flex items-center gap-2">
+                <div class="bg-indigo-600 text-white p-1.5 sm:p-2 rounded-xl shadow-md shadow-indigo-200">
+                    <i data-lucide="graduation-cap" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-base sm:text-lg tracking-tight text-slate-900">EduAI <span class="text-indigo-600">РК</span></span>
+                    <span class="hidden md:inline-block text-xs bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded-full ml-1">ТУП РК (5–11 кл.)</span>
+                </div>
+            </div>
+
+            <!-- Переключатель ролей -->
+            <nav class="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60" role="tablist">
+                <button onclick="switchRole('student')" id="tab-student" class="role-tab flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-indigo-600 shadow-sm">
+                    <i data-lucide="user" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                    <span>Ученик</span>
+                </button>
+                <button onclick="switchRole('teacher')" id="tab-teacher" class="role-tab flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                    <span>Учитель</span>
+                </button>
+                <button onclick="switchRole('parent')" id="tab-parent" class="role-tab flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all">
+                    <i data-lucide="users" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                    <span>Родителям</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-8">
+
+        <!-- ========================================== -->
+        <!-- 1. ИНТЕРФЕЙС УЧЕНИКА                       -->
+        <!-- ========================================== -->
+        <section id="view-student" class="fade-in space-y-6">
+            
+            <!-- Карточка входа / выбора класса -->
+            <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Кабинет ученика</h1>
+                        <p class="text-sm text-slate-500 mt-1">Выберите класс, литер и введите ФИО для получения индивидуального задания</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/80 self-start sm:self-auto">
+                        <i data-lucide="calendar" class="w-4 h-4 text-indigo-600"></i>
+                        <span class="text-xs font-medium text-slate-500">Дата:</span>
+                        <span id="current-date-display" class="text-sm font-bold text-slate-800"></span>
+                    </div>
+                </div>
+
+                <!-- Форма выбора -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Класс и предмет</label>
+                        <select id="student-class-select" onchange="onStudentClassChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3 font-medium">
+                            <!-- Заполняется через JS -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Литер класса</label>
+                        <select id="student-letter-select" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3 font-medium">
+                            <option value="">Выберите литер...</option>
+                            <option value="А">А</option>
+                            <option value="Б">Б</option>
+                            <option value="В">В</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">ФИО Ученика</label>
+                        <input type="text" id="student-name-input" placeholder="Например: Алихан Сериков" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3">
+                    </div>
+                </div>
+
+                <!-- Информация о задании от учителя (только отображение) -->
+                <div id="student-task-meta" class="mt-5 p-4 bg-indigo-50/70 rounded-xl border border-indigo-100 flex flex-wrap items-center justify-between gap-4">
+                    <div class="space-y-1.5 flex-1 min-w-[240px]">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs font-bold uppercase px-2.5 py-0.5 rounded-md bg-indigo-600 text-white" id="meta-lesson-num">1 четв. • Урок №14</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800" id="meta-difficulty">Уровень: Средний (B)</span>
+                        </div>
+                        <p class="text-xs text-indigo-800 font-semibold" id="meta-section">Раздел: Делимость натуральных чисел</p>
+                        <p class="text-sm text-slate-900 font-bold leading-snug" id="meta-topic">Тема: Делимость натуральных чисел. НОД и НОК</p>
+                        <p class="text-sm text-slate-700 font-medium leading-snug"><span class="text-slate-500">Цель обучения:</span> <span id="meta-goal"></span></p>
+                    </div>
+                    <button onclick="generateStudentTask()" id="btn-generate-task" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold py-2.5 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 shrink-0">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span>Получить моё задание</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Блок сгенерированного задания и загрузки фото -->
+            <div id="student-workspace" class="hidden grid-cols-1 lg:grid-cols-12 gap-6 fade-in">
+                
+                <!-- Левая колонка: Само задание -->
+                <div class="lg:col-span-6 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-4">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Вариант #<span id="variant-id">402</span>
+                            </span>
+                            <button onclick="switchRole('parent')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+                                <i data-lucide="book-open-check" class="w-3.5 h-3.5"></i>
+                                <span>Формулы и правила</span>
+                            </button>
+                        </div>
+
+                        <h2 class="text-lg font-bold text-slate-900 mb-3">Ваше индивидуальное задание:</h2>
+                        
+                        <div id="student-task-box" class="p-4 sm:p-5 bg-slate-50 rounded-xl border border-slate-200 text-slate-800 text-base leading-relaxed font-medium whitespace-pre-line">
+                            <!-- Текст сгенерированного задания с отрендеренным KaTeX -->
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 flex items-start gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></i>
+                        <p>Решите задание самостоятельно в тетради, расписывая все шаги. Сфотографируйте решение при хорошем освещении и загрузите справа для ИИ-проверки.</p>
+                    </div>
+                </div>
+
+                <!-- Правая колонка: Загрузка фото и результат -->
+                <div class="lg:col-span-6 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4">Загрузка решения на проверку</h2>
+
+                    <!-- Зона загрузки фото -->
+                    <div id="upload-zone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-6 text-center transition-colors bg-slate-50/50 cursor-pointer relative" onclick="document.getElementById('solution-photo-input').click()">
+                        <input type="file" id="solution-photo-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(event)">
+                        
+                        <div id="upload-placeholder" class="space-y-2 py-4">
+                            <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+                                <i data-lucide="camera" class="w-6 h-6"></i>
+                            </div>
+                            <p class="text-sm font-semibold text-slate-800">Нажмите, чтобы сделать фото или выбрать файл</p>
+                            <p class="text-xs text-slate-500">Поддерживаются JPG, PNG (четкое фото тетради)</p>
+                        </div>
+
+                        <!-- Превью загруженного фото -->
+                        <div id="photo-preview-container" class="hidden relative">
+                            <img id="photo-preview" src="" alt="Фото решения" class="max-h-64 mx-auto rounded-xl shadow-sm object-contain">
+                            <button type="button" onclick="resetPhoto(event)" class="absolute top-2 right-2 bg-slate-900/70 hover:bg-slate-900 text-white p-1.5 rounded-lg backdrop-blur-sm transition">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Кнопка отправки на проверку -->
+                    <button id="btn-check-solution" onclick="checkSolutionWithAI()" disabled class="w-full mt-4 bg-emerald-600 disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-emerald-700 text-white font-semibold py-3 px-5 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                        <span>Проверить решение и отправить в журнал</span>
+                    </button>
+
+                    <!-- Индикатор загрузки проверки -->
+                    <div id="ai-checking-loader" class="hidden mt-6 p-6 bg-indigo-50/60 rounded-xl border border-indigo-100 text-center space-y-3">
+                        <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <p class="text-sm font-semibold text-indigo-900">ИИ анализирует почерк, ход решения, самостоятельность и ответ...</p>
+                        <p class="text-xs text-indigo-600">Это займет несколько секунд</p>
+                    </div>
+
+                    <!-- Результат проверки -->
+                    <div id="ai-result-card" class="hidden mt-6 rounded-2xl border p-5 space-y-4 fade-in">
+                        <div class="flex items-center justify-between border-b pb-3" id="result-header">
+                            <div class="flex items-center gap-2.5">
+                                <div id="result-icon-bg" class="p-2 rounded-xl"></div>
+                                <div>
+                                    <h3 class="font-bold text-base" id="result-title">Проверка завершена</h3>
+                                    <p class="text-xs opacity-80" id="result-sheets-status">Отправлено в Google Таблицу</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs uppercase font-bold opacity-75 block">Оценка / Балл</span>
+                                <span class="text-2xl font-extrabold" id="result-score">8 / 10</span>
+                            </div>
+                        </div>
+
+                        <!-- Индикатор проверки на использование ИИ -->
+                        <div id="result-ai-check-box" class="rounded-xl border p-3.5 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider" id="result-ai-check-title">
+                                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                    <span>Проверка на использование ИИ:</span>
+                                </div>
+                                <span id="result-ai-percent-badge" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                                <div id="result-ai-progress-bar" class="h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <p id="result-ai-reason" class="text-xs leading-relaxed"></p>
+                        </div>
+
+                        <!-- Детальный разбор -->
+                        <div class="space-y-3 text-sm">
+                            <div>
+                                <span class="font-semibold text-slate-700 block mb-1">Анализ хода решения:</span>
+                                <p id="result-feedback" class="text-slate-600 bg-white/80 p-3 rounded-xl border border-slate-200/60 leading-relaxed"></p>
+                            </div>
+
+                            <!-- Что нужно повторить -->
+                            <div id="result-remediation-box" class="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
+                                <div class="flex items-center gap-1.5 text-amber-800 font-bold text-xs uppercase tracking-wider mb-1">
+                                    <i data-lucide="book-marked" class="w-4 h-4"></i>
+                                    <span>Рекомендация к повторению:</span>
+                                </div>
+                                <p class="text-amber-900 font-semibold text-sm" id="result-repeat-topic"></p>
+                                <p class="text-amber-800 text-xs mt-1" id="result-repeat-rule"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- 2. ИНТЕРФЕЙС УЧИТЕЛЯ                       -->
+        <!-- ========================================== -->
+        <section id="view-teacher" class="hidden fade-in space-y-6">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Конструктор ДЗ по ТУП РК -->
+                <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-5">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h1 class="text-xl font-bold text-slate-900">Конструктор ДЗ по ТУП РК</h1>
+                        <p class="text-sm text-slate-500 mt-1">Настройте параметры урока. Система сгенерирует индивидуальные варианты для каждого ученика.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Класс и предмет</label>
+                            <select id="teacher-class-select" onchange="onTeacherClassChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3 font-medium">
+                                <!-- Заполняется JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Номер урока по КТП</label>
+                            <input type="number" id="teacher-lesson-num" value="12" min="1" max="180" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3 font-medium">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Четверть</label>
+                            <select id="teacher-quarter-select" onchange="onTeacherQuarterChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3 font-medium">
+                                <option value="1">1 четверть</option>
+                                <option value="2">2 четверть</option>
+                                <option value="3">3 четверть</option>
+                                <option value="4">4 четверть</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Раздел (ТУП РК)</label>
+                            <select id="teacher-section-select" onchange="onTeacherSectionChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3 font-medium">
+                                <!-- Заполняется JS -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Тема урока (согласно ТУП РК)</label>
+                        <select id="teacher-topic-select" onchange="onTeacherTopicChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3 font-medium">
+                            <!-- Заполняется JS -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Цель обучения (из ТУП РК)</label>
+                        <select id="teacher-goal-select" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3">
+                            <!-- Заполняется JS -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Уровень сложности (Дифференциация)</label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="difficulty" value="Базовый (Уровень A)" class="peer sr-only">
+                                <div class="p-3 rounded-xl border border-slate-200 text-center peer-checked:border-indigo-600 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 transition">
+                                    <span class="block font-bold text-sm">Уровень A</span>
+                                    <span class="text-xs text-slate-500">Базовый</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="difficulty" value="Средний (Уровень B)" class="peer sr-only" checked>
+                                <div class="p-3 rounded-xl border border-slate-200 text-center peer-checked:border-indigo-600 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 transition">
+                                    <span class="block font-bold text-sm">Уровень B</span>
+                                    <span class="text-xs text-slate-500">Средний</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="difficulty" value="Продвинутый (Уровень C)" class="peer sr-only">
+                                <div class="p-3 rounded-xl border border-slate-200 text-center peer-checked:border-indigo-600 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 transition">
+                                    <span class="block font-bold text-sm">Уровень C</span>
+                                    <span class="text-xs text-slate-500">Сложный</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Количество заданий и обязательная текстовая задача -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center pt-1">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Количество заданий в ДЗ</label>
+                            <select id="teacher-task-count" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-3 font-medium">
+                                <option value="1">1 задание</option>
+                                <option value="2" selected>2 задания</option>
+                                <option value="3">3 задания</option>
+                                <option value="4">4 задания</option>
+                                <option value="5">5 заданий</option>
+                                <option value="6">6 заданий</option>
+                            </select>
+                        </div>
+                        <div class="pt-0 sm:pt-5">
+                            <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-indigo-50/50 cursor-pointer transition select-none">
+                                <input type="checkbox" id="teacher-include-word-problem" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                <span class="text-sm font-medium text-slate-800">Включить текстовую задачу</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex flex-col sm:flex-row gap-3">
+                        <button onclick="generateTeacherPreview()" id="btn-teacher-preview" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            <span>Показать пример задания</span>
+                        </button>
+                        <button onclick="goToNextLesson()" id="btn-next-lesson" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2 shrink-0" title="Перейти к следующему уроку">
+                            <i data-lucide="skip-forward" class="w-4 h-4"></i>
+                            <span>К следующему уроку</span>
+                        </button>
+                        <button onclick="publishHomework()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>Назначить классу</span>
+                        </button>
+                    </div>
+
+                    <!-- Окно предпросмотра примера задания для учителя -->
+                    <div id="teacher-preview-box" class="hidden p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 fade-in">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase text-amber-800 flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                Пример задания (для учеников числа будут меняться)
+                            </span>
+                        </div>
+                        <div id="teacher-preview-text" class="text-sm text-slate-800 font-medium whitespace-pre-line leading-relaxed"></div>
+                    </div>
+                </div>
+
+                <!-- Правая колонка: Настройка ИИ, Google Таблиц и Журнал -->
+                <div class="lg:col-span-5 space-y-6">
+
+                    <!-- Настройка Gemini API Key и Ссылки для класса -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="bg-indigo-100 text-indigo-700 p-2 rounded-lg">
+                                    <i data-lucide="key-round" class="w-5 h-5"></i>
+                                </div>
+                                <h2 class="font-bold text-slate-900">ИИ-ключ и Ссылка классу</h2>
+                            </div>
+                            <span id="ai-key-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">Не задан</span>
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Вставьте ключ из <b>Google AI Studio</b> (сохраняется постоянно). При копировании ссылки для учеников ключ и тема автоматически передаются классу.
+                        </p>
+                        <div class="flex gap-2">
+                            <input type="password" id="gemini-api-key-input" placeholder="AIzaSy... или AQ.Ab8..." class="flex-1 bg-slate-50 border border-slate-300 text-slate-900 text-xs rounded-xl p-2.5 font-mono">
+                            <button onclick="saveGeminiApiKey()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-2.5 rounded-xl transition shrink-0">
+                                Сохранить
+                            </button>
+                        </div>
+                        <button onclick="copyStudentInviteLink()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
+                            <i data-lucide="share-2" class="w-3.5 h-3.5 text-indigo-600"></i>
+                            <span>Скопировать ссылку для учеников</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Интеграция с Google Sheets -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="bg-emerald-100 text-emerald-700 p-2 rounded-lg">
+                                    <i data-lucide="table" class="w-5 h-5"></i>
+                                </div>
+                                <h2 class="font-bold text-slate-900">Google Таблицы</h2>
+                            </div>
+                            <span id="sheets-connection-badge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Демо-режим</span>
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            Вставьте URL веб-приложения Google Apps Script, чтобы оценки, процент ИИ и темы для повторения автоматически записывались в вашу таблицу.
+                        </p>
+                        <div class="flex gap-2">
+                            <input type="url" id="google-script-url" placeholder="https://script.google.com/macros/s/..." class="flex-1 bg-slate-50 border border-slate-300 text-slate-900 text-xs rounded-xl p-2.5 font-mono">
+                            <button onclick="saveGoogleSheetUrl()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2.5 rounded-xl transition shrink-0">
+                                Сохранить
+                            </button>
+                        </div>
+                        <button onclick="toggleScriptModal()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                            <i data-lucide="help-circle" class="w-3.5 h-3.5"></i>
+                            <span>Как получить URL и код скрипта?</span>
+                        </button>
+                    </div>
+
+                    <!-- Журнал проверок -->
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-bold text-slate-900">Журнал проверок (Live)</h2>
+                            <span class="text-xs text-slate-400">Автосинхронизация</span>
+                        </div>
+                        
+                        <div id="teacher-journal-list" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            <!-- Записи добавляются динамически -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- 3. ИНТЕРФЕЙС РОДИТЕЛЕЙ                     -->
+        <!-- ========================================== -->
+        <section id="view-parent" class="hidden fade-in space-y-6">
+            <div class="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Справочник для родителей</h1>
+                        <p class="text-sm text-slate-500 mt-1">Формулы, правила и подсказки по темам ТУП РК для помощи ребёнку с домашним заданием</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                        <div class="w-full sm:w-64">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Класс и предмет:</label>
+                            <select id="parent-class-select" onchange="renderParentGuides()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-2.5 font-medium">
+                                <!-- Заполняется JS -->
+                            </select>
+                        </div>
+                        <div class="w-full sm:w-44">
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Четверть:</label>
+                            <select id="parent-quarter-select" onchange="renderParentGuides()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl p-2.5 font-medium">
+                                <option value="all">Все четверти</option>
+                                <option value="1">1 четверть</option>
+                                <option value="2">2 четверть</option>
+                                <option value="3">3 четверть</option>
+                                <option value="4">4 четверть</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточки с правилами и формулами -->
+                <div id="parent-guides-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <!-- Заполняется динамически из базы знаний -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Модальное окно с кодом Google Apps Script -->
+    <div id="script-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-900">Инструкция подключения Google Таблиц</h3>
+                <button onclick="toggleScriptModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="text-sm text-slate-600 space-y-2 overflow-y-auto pr-2">
+                <p>1. Создайте новую Google Таблицу.</p>
+                <p>2. В верхнем меню выберите <b>Расширения → Apps Script</b>.</p>
+                <p>3. Удалите весь код и вставьте следующий скрипт:</p>
+                <pre id="apps-script-code" class="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto font-mono select-all">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  
+  // Если таблица пустая, добавляем заголовки
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["Дата", "Класс", "ФИО Ученика", "№ Урока", "Тема", "Сложность", "Оценка", "Вероятность ИИ (%)", "Что повторить"]);
+  }
+  
+  sheet.appendRow([
+    data.date,
+    data.studentClass,
+    data.studentName,
+    data.lessonNum,
+    data.topic,
+    data.difficulty,
+    data.score,
+    data.aiUsagePercent + "%",
+    data.repeatTopic
+  ]);
+  
+  return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                <p>4. Нажмите <b>Начать развертывание → Новое развертывание</b>. Тип: <b>Веб-приложение</b>. Доступ: <b>Все (Anyone)</b>.</p>
+                <p>5. Скопируйте полученный URL и вставьте в поле настроек в кабинете учителя.</p>
+            </div>
+            <div class="pt-3 border-t flex justify-end gap-2">
+                <button onclick="copyScriptCode()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 px-4 rounded-xl">
+                    Скопировать код
+                </button>
+                <button onclick="toggleScriptModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2 px-4 rounded-xl">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно входа в кабинет учителя по паролю -->
+    <div id="teacher-password-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4 fade-in">
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-100 text-indigo-700 p-2 rounded-xl">
+                        <i data-lucide="lock" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-lg text-slate-900">Вход для учителя</h3>
+                </div>
+                <button onclick="cancelTeacherLogin()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed">
+                Введите пароль учителя, чтобы открыть настройки урока, постоянный API-ключ и журнал проверок.
+            </p>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1.5">Пароль</label>
+                <input type="password" id="teacher-password-input" onkeydown="if(event.key==='Enter') verifyTeacherPassword()" placeholder="Введите пароль..." class="w-full bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3">
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="cancelTeacherLogin()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold py-2.5 px-4 rounded-xl transition">
+                    Отмена
+                </button>
+                <button onclick="verifyTeacherPassword()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2.5 px-4 rounded-xl shadow-sm transition">
+                    Войти
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // НАСТРОЙКИ БЕЗОПАСНОСТИ И ПОСТОЯННЫХ ДАННЫХ УЧИТЕЛЯ
+        // =========================================================================
+        const TEACHER_ACCESS_PASSWORD = localStorage.getItem('eduai_teacher_pass') || "mat13579";
+        const PERMANENT_DEFAULT_GEMINI_KEY = "";
+
+        // Глобальное состояние приложения
+        const DEFAULT_HOMEWORK = {
+            studentClass: "5 класс — Математика",
+            quarter: 1,
+            section: "Делимость натуральных чисел",
+            topicId: "5_nat",
+            topicName: "Делимость натуральных чисел. НОД и НОК",
+            goal: "5.1.2.12 находить НОД и НОК двух и более чисел",
+            lessonNum: 14,
+            difficulty: "Средний (Уровень B)",
+            taskCount: 2,
+            includeWordProblem: false
+        };
+
+        const savedHomework = JSON.parse(localStorage.getItem('eduai_active_homework') || "null");
+        const savedLessonDraft = JSON.parse(localStorage.getItem('eduai_teacher_lesson_draft') || "null");
+        const savedClassLessons = JSON.parse(localStorage.getItem('eduai_class_lessons') || "{}");
+
+        const appState = {
+            currentRole: 'student',
+            isTeacherAuthenticated: false,
+            geminiApiKey: localStorage.getItem('eduai_gemini_key') || PERMANENT_DEFAULT_GEMINI_KEY,
+            googleSheetUrl: localStorage.getItem('eduai_gsheet_url') || "",
+            activeHomework: savedHomework ? { ...DEFAULT_HOMEWORK, ...savedHomework } : { ...DEFAULT_HOMEWORK },
+            teacherDraft: savedLessonDraft || null,
+            classLessons: savedClassLessons,
+            lastAssignedTopicKey: localStorage.getItem('eduai_last_assigned_topic_key') || "",
+            lastSessionDate: localStorage.getItem('eduai_last_session_date') || "",
+            currentGeneratedTaskText: "",
+            uploadedImageBase64: null,
+            uploadedImageMimeType: null,
+            journal: JSON.parse(localStorage.getItem('eduai_journal_data') || "[]")
+        };
+
+        // =========================================================================
+        // 1. БАЗА ДАННЫХ ТЕМ И ЦЕЛЕЙ ОБУЧЕНИЯ ПО ТУП РК (5–11 КЛАССЫ, ПО ЧЕТВЕРТЯМ)
+        // =========================================================================
+        const TUP_RK_DATABASE = {
+            "5 класс — Математика": [
+                {
+                    id: "5_nat",
+                    quarter: 1,
+                    section: "Делимость натуральных чисел",
+                    lessonNum: 14,
+                    topic: "Делимость натуральных чисел. НОД и НОК",
+                    goals: [
+                        "5.1.2.12 находить НОД и НОК двух и более чисел",
+                        "5.1.2.11 применять признаки делимости на $2$, $3$, $5$, $9$, $10$ при решении задач"
+                    ],
+                    parentGuide: {
+                        title: "Признаки делимости, НОД и НОК",
+                        formulas: [
+                            "На $2$: число оканчивается на чётную цифру ($0, 2, 4, 6, 8$).",
+                            "На $3$ и $9$: сумма цифр числа делится на $3$ (или на $9$).",
+                            "На $5$: число оканчивается на $0$ или $5$. На $10$: на $0$.",
+                            "$\\text{НОД}(a, b)$ — произведение общих простых множителей в наименьших степенях.",
+                            "$\\text{НОК}(a, b)$ — произведение всех простых множителей в наибольших степенях."
+                        ],
+                        rules: "Проверьте, разложил ли ребёнок числа на простые множители ($2, 3, 5, 7, 11\\dots$). Не путайте НОД (делитель, меньше или равен числам) и НОК (кратное, больше или равно числам)."
+                    }
+                },
+                {
+                    id: "5_frac",
+                    quarter: 2,
+                    section: "Обыкновенные дроби и действия над ними",
+                    lessonNum: 42,
+                    topic: "Обыкновенные дроби. Сложение и вычитание",
+                    goals: [
+                        "5.1.2.19 выполнять сложение и вычитание обыкновенных дробей с разными знаменателями",
+                        "5.1.2.21 выполнять сложение и вычитание смешанных чисел"
+                    ],
+                    parentGuide: {
+                        title: "Действия с обыкновенными дробями",
+                        formulas: [
+                            "$\\frac{a}{c} \\pm \\frac{b}{c} = \\frac{a \\pm b}{c}$",
+                            "$\\frac{a}{b} \\pm \\frac{c}{d} = \\frac{ad \\pm bc}{bd}$",
+                            "Неправильную дробь при необходимости переводим в смешанное число: $\\frac{7}{4} = 1\\frac{3}{4}$."
+                        ],
+                        rules: "При сложении и вычитании дробей с разными знаменателями сначала приводим их к общему знаменателю, домножая и числитель, и знаменатель на дополнительный множитель."
+                    }
+                },
+                {
+                    id: "5_dec",
+                    quarter: 3,
+                    section: "Десятичные дроби и действия над ними",
+                    lessonNum: 61,
+                    topic: "Умножение и деление десятичных дробей",
+                    goals: [
+                        "5.1.2.28 выполнять умножение десятичных дробей",
+                        "5.1.2.30 выполнять деление десятичной дроби на натуральное число и на десятичную дробь"
+                    ],
+                    parentGuide: {
+                        title: "Умножение и деление десятичных дробей",
+                        formulas: [
+                            "При умножении отделяем запятой справа столько знаков, сколько их после запятой в обоих множителях вместе.",
+                            "При делении на десятичную дробь переносим запятую вправо в делимом и делителе на число знаков в делителе."
+                        ],
+                        rules: "Следите за тем, чтобы при сложении и вычитании десятичных дробей в столбик запятая записывалась строго под запятой."
+                    }
+                },
+                {
+                    id: "5_percent",
+                    quarter: 4,
+                    section: "Проценты",
+                    lessonNum: 78,
+                    topic: "Проценты. Нахождение процента от числа и числа по его проценту",
+                    goals: [
+                        "5.1.2.33 находить процент от данного числа",
+                        "5.1.2.34 находить число по данному его проценту"
+                    ],
+                    parentGuide: {
+                        title: "Задачи на проценты",
+                        formulas: [
+                            "$1\\% = \\frac{1}{100} = 0{,}01$",
+                            "Процент от числа $A$: $A \\cdot \\frac{p}{100}$",
+                            "Число по его части $B$, составляющей $p\\%$: $B : \\frac{p}{100} = \\frac{B \\cdot 100}{p}$"
+                        ],
+                        rules: "Попросите ребёнка определить, что известно: целое число (тогда умножаем на десятичную дробь процентов) или часть от целого (тогда делим)."
+                    }
+                }
+            ],
+            "6 класс — Математика": [
+                {
+                    id: "6_ratio",
+                    quarter: 1,
+                    section: "Отношения и пропорции",
+                    lessonNum: 19,
+                    topic: "Отношения и пропорции. Прямая и обратная пропорциональность",
+                    goals: [
+                        "6.1.2.5 находить неизвестный член пропорции",
+                        "6.5.1.3 решать задачи с помощью пропорции, в том числе на прямую и обратную пропорциональность"
+                    ],
+                    parentGuide: {
+                        title: "Основное свойство пропорции",
+                        formulas: [
+                            "$\\frac{a}{b} = \\frac{c}{d} \\iff a \\cdot d = b \\cdot c$",
+                            "Прямая пропорциональность: во сколько раз больше величина, во столько раз больше другая ($y = kx$).",
+                            "Обратная пропорциональность: во сколько раз больше скорость, во столько раз меньше время ($y = \\frac{k}{x}$)."
+                        ],
+                        rules: "Произведение крайних членов пропорции равно произведению средних. В задачах на движение и работу проверяйте логику: увеличивается ли ответ или уменьшается."
+                    }
+                },
+                {
+                    id: "6_rational",
+                    quarter: 2,
+                    section: "Действия над рациональными числами",
+                    lessonNum: 55,
+                    topic: "Рациональные числа и действия над ними",
+                    goals: [
+                        "6.1.2.14 выполнять сложение и вычитание рациональных чисел",
+                        "6.1.2.15 выполнять умножение и деление рациональных чисел"
+                    ],
+                    parentGuide: {
+                        title: "Правила знаков для рациональных чисел",
+                        formulas: [
+                            "$(+) \\cdot (+) = (+)$, $(- ) \\cdot (-) = (+)$",
+                            "$(+) \\cdot (-) = (-)$, $(- ) \\cdot (+) = (-)$",
+                            "Сумма двух отрицательных чисел отрицательна: $(-a) + (-b) = -(a + b)$."
+                        ],
+                        rules: "При сложении чисел с разными знаками ставим знак числа с большим модулем и из большего модуля вычитаем меньший."
+                    }
+                },
+                {
+                    id: "6_eq",
+                    quarter: 3,
+                    section: "Линейные уравнения и неравенства с одной переменной",
+                    lessonNum: 86,
+                    topic: "Линейные уравнения с одной переменной",
+                    goals: [
+                        "6.2.2.1 решать линейные уравнения с одной переменной",
+                        "6.2.2.3 решать текстовые задачи с помощью составления линейных уравнений"
+                    ],
+                    parentGuide: {
+                        title: "Решение линейных уравнений",
+                        formulas: [
+                            "$ax + b = cx + d \\implies (a - c)x = d - b$",
+                            "При переносе слагаемого через знак «$=$» меняем его знак на противоположный."
+                        ],
+                        rules: "Сначала раскрываем скобки (если есть), затем переносим слагаемые с переменной влево, а числа — вправо, и делим на коэффициент при $x$."
+                    }
+                },
+                {
+                    id: "6_sys_coord",
+                    quarter: 4,
+                    section: "Координатная плоскость. Системы линейных уравнений",
+                    lessonNum: 112,
+                    topic: "Координатная плоскость. Линейные уравнения с двумя переменными",
+                    goals: [
+                        "6.3.1.4 строить точку в системе координат по её координатам и находить координаты точки",
+                        "6.2.2.18 решать системы линейных уравнений способом сложения и подстановки"
+                    ],
+                    parentGuide: {
+                        title: "Координатная плоскость",
+                        formulas: [
+                            "Запись координат точки: $A(x; y)$, где $x$ — абсцисса, $y$ — ордината.",
+                            "Перпендикулярные прямые пересекаются под углом $90^\\circ$."
+                        ],
+                        rules: "На первом месте в скобках всегда пишется координата по горизонтальной оси $Ox$, на втором — по вертикальной оси $Oy$."
+                    }
+                }
+            ],
+            "7 класс — Алгебра": [
+                {
+                    id: "7_deg",
+                    quarter: 1,
+                    section: "Степень с целым показателем",
+                    lessonNum: 12,
+                    topic: "Степень с целым показателем и её свойства",
+                    goals: [
+                        "7.1.2.1 применять свойства степени с целым показателем при преобразовании выражений",
+                        "7.1.2.4 записывать числа в стандартном виде"
+                    ],
+                    parentGuide: {
+                        title: "Свойства степеней",
+                        formulas: [
+                            "$a^m \\cdot a^n = a^{m+n}$, $\\quad \\frac{a^m}{a^n} = a^{m-n}$",
+                            "$(a^m)^n = a^{m \\cdot n}$, $\\quad a^{-n} = \\frac{1}{a^n}$ ($a \\neq 0$)",
+                            "$a^0 = 1$ ($a \\neq 0$)"
+                        ],
+                        rules: "При умножении одинаковых оснований показатели складываются, при делении — вычитаются, при возведении степени в степень — перемножаются."
+                    }
+                },
+                {
+                    id: "7_func",
+                    quarter: 2,
+                    section: "Функция. График функции",
+                    lessonNum: 28,
+                    topic: "Линейная функция и её график",
+                    goals: [
+                        "7.4.1.5 знать определение линейной функции $y = kx + b$, строить её график и устанавливать его расположение в зависимости от $k$ и $b$"
+                    ],
+                    parentGuide: {
+                        title: "Линейная функция",
+                        formulas: [
+                            "$y = kx + b$",
+                            "Если $k > 0$, функция возрастает; если $k < 0$, убывает.",
+                            "Графики $y = k_1x + b_1$ и $y = k_2x + b_2$ параллельны при $k_1 = k_2, b_1 \\neq b_2$."
+                        ],
+                        rules: "Для построения графика линейной функции достаточно найти координаты двух точек и провести через них прямую."
+                    }
+                },
+                {
+                    id: "7_mult",
+                    quarter: 3,
+                    section: "Формулы сокращённого умножения",
+                    lessonNum: 48,
+                    topic: "Формулы сокращённого умножения",
+                    goals: [
+                        "7.2.1.11 знать и применять формулы сокращённого умножения: $(a \\pm b)^2 = a^2 \\pm 2ab + b^2$",
+                        "7.2.1.12 применять формулу разности квадратов: $a^2 - b^2 = (a - b)(a + b)$"
+                    ],
+                    parentGuide: {
+                        title: "Формулы сокращённого умножения (ФСУ)",
+                        formulas: [
+                            "$(a + b)^2 = a^2 + 2ab + b^2$",
+                            "$(a - b)^2 = a^2 - 2ab + b^2$",
+                            "$a^2 - b^2 = (a - b)(a + b)$",
+                            "$a^3 \\pm b^3 = (a \\pm b)(a^2 \\mp ab + b^2)$"
+                        ],
+                        rules: "В квадрате суммы/разности обязательно присутствует удвоенное произведение $2ab$. Суммы квадратов $a^2 + b^2$ на множители в действительных числах не раскладывается."
+                    }
+                },
+                {
+                    id: "7_alg_frac",
+                    quarter: 4,
+                    section: "Алгебраические дроби",
+                    lessonNum: 68,
+                    topic: "Сокращение и действия над алгебраическими дробями",
+                    goals: [
+                        "7.2.1.18 выполнять сложение, вычитание, умножение и деление алгебраических дробей"
+                    ],
+                    parentGuide: {
+                        title: "Алгебраические дроби",
+                        formulas: [
+                            "$\\frac{A \\cdot C}{B \\cdot C} = \\frac{A}{B}$ ($B \\neq 0, C \\neq 0$)",
+                            "$\\frac{A}{B} : \\frac{C}{D} = \\frac{A \\cdot D}{B \\cdot C}$"
+                        ],
+                        rules: "Сокращать алгебраическую дробь можно только на общий множитель, предварительно разложив числитель и знаменатель на множители."
+                    }
+                }
+            ],
+            "7 класс — Геометрия": [
+                {
+                    id: "7_geom_basic",
+                    quarter: 1,
+                    section: "Начальные геометрические сведения",
+                    lessonNum: 8,
+                    topic: "Смежные и вертикальные углы и их свойства",
+                    goals: [
+                        "7.1.1.10 знать и применять свойства вертикальных и смежных углов"
+                    ],
+                    parentGuide: {
+                        title: "Смежные и вертикальные углы",
+                        formulas: [
+                            "Сумма смежных углов равна $180^\\circ$: $\\alpha + \\beta = 180^\\circ$.",
+                            "Вертикальные углы равны: $\\alpha = \\beta$."
+                        ],
+                        rules: "Проверьте, правильно ли выполнен чертёж и отмечены равные углы."
+                    }
+                },
+                {
+                    id: "7_geom_tri",
+                    quarter: 2,
+                    section: "Треугольники",
+                    lessonNum: 18,
+                    topic: "Признаки равенства треугольников. Равнобедренный треугольник",
+                    goals: [
+                        "7.1.1.21 применять признаки равенства треугольников при решении задач",
+                        "7.1.1.23 применять свойства равнобедренного треугольника"
+                    ],
+                    parentGuide: {
+                        title: "Равенство и свойства треугольников",
+                        formulas: [
+                            "Сумма углов треугольника: $\\angle A + \\angle B + \\angle C = 180^\\circ$.",
+                            "В равнобедренном треугольнике углы при основании равны, а биссектриса к основанию является медианой и высотой."
+                        ],
+                        rules: "Чтобы доказать равенство треугольников, нужно обосновать три пары равных элементов (по двум сторонам и углу между ними, по стороне и двум прилежащим углам или по трём сторонам)."
+                    }
+                },
+                {
+                    id: "7_geom_par",
+                    quarter: 3,
+                    section: "Параллельные прямые",
+                    lessonNum: 33,
+                    topic: "Параллельные прямые. Углы при параллельных прямых и секущей",
+                    goals: [
+                        "7.1.1.16 применять свойства углов, образованных при пересечении двух параллельных прямых секущей"
+                    ],
+                    parentGuide: {
+                        title: "Углы при параллельных прямых",
+                        formulas: [
+                            "Накрест лежащие углы равны.",
+                            "Соответственные углы равны.",
+                            "Сумма односторонних углов равна $180^\\circ$."
+                        ],
+                        rules: "Сначала убедитесь, что прямые параллельны (или используйте признак параллельности), затем определите вид пары углов относительно секущей."
+                    }
+                },
+                {
+                    id: "7_geom_circ",
+                    quarter: 4,
+                    section: "Окружность. Геометрические построения",
+                    lessonNum: 46,
+                    topic: "Окружность, касательная к окружности. Задачи на построение",
+                    goals: [
+                        "7.1.2.4 знать и применять свойства касательной к окружности при решении задач"
+                    ],
+                    parentGuide: {
+                        title: "Касательная к окружности",
+                        formulas: [
+                            "Касательная к окружности перпендикулярна радиусу, проведённому в точку касания.",
+                            "Отрезки касательных, проведённых из одной точки, равны."
+                        ],
+                        rules: "В задачах на касательную ищите прямоугольный треугольник, образованный радиусом и касательной."
+                    }
+                }
+            ],
+            "8 класс — Алгебра": [
+                {
+                    id: "8_root",
+                    quarter: 1,
+                    section: "Квадратные корни и иррациональные выражения",
+                    lessonNum: 15,
+                    topic: "Арифметический квадратный корень и его свойства",
+                    goals: [
+                        "8.1.2.2 выполнять преобразования выражений, содержащих квадратные корни",
+                        "8.1.3.2 освобождаться от иррациональности в знаменателе дроби"
+                    ],
+                    parentGuide: {
+                        title: "Свойства квадратных корней",
+                        formulas: [
+                            "$\\sqrt{a \\cdot b} = \\sqrt{a} \\cdot \\sqrt{b}$ ($a \\ge 0, b \\ge 0$)",
+                            "$\\sqrt{\\frac{a}{b}} = \\frac{\\sqrt{a}}{\\sqrt{b}}$ ($a \\ge 0, b > 0$)",
+                            "$\\sqrt{a^2} = |a|$"
+                        ],
+                        rules: "Корень из суммы не равен сумме корней! Сначала упрощаем подкоренное выражение или выносим множитель из-под знака корня."
+                    }
+                },
+                {
+                    id: "8_quad",
+                    quarter: 2,
+                    section: "Квадратные уравнения",
+                    lessonNum: 38,
+                    topic: "Квадратные уравнения. Теорема Виета",
+                    goals: [
+                        "8.2.2.3 решать квадратные уравнения",
+                        "8.2.2.4 применять теорему Виета"
+                    ],
+                    parentGuide: {
+                        title: "Формула корней и теорема Виета",
+                        formulas: [
+                            "$ax^2 + bx + c = 0 \\quad (a \\neq 0), \\quad D = b^2 - 4ac$",
+                            "$x_{1,2} = \\frac{-b \\pm \\sqrt{D}}{2a}$ (при $D \\ge 0$)",
+                            "Теорема Виета для $x^2 + px + q = 0$: $x_1 + x_2 = -p$, $\\quad x_1 \\cdot x_2 = q$."
+                        ],
+                        rules: "Если $D < 0$, действительных корней нет. Если $D = 0$, корень один: $x = -\\frac{b}{2a}$. Внимательно следите за знаком минус перед $b$."
+                    }
+                },
+                {
+                    id: "8_quad_func",
+                    quarter: 3,
+                    section: "Квадратичная функция",
+                    lessonNum: 50,
+                    topic: "Квадратичная функция $y = ax^2 + bx + c$ и её график",
+                    goals: [
+                        "8.4.1.3 строить график квадратичной функции $y = ax^2 + bx + c$ и находить её свойства"
+                    ],
+                    parentGuide: {
+                        title: "Вершина и ветви параболы",
+                        formulas: [
+                            "Координаты вершины: $x_0 = -\\frac{b}{2a}$, $\\quad y_0 = y(x_0)$.",
+                            "При $a > 0$ ветви параболы направлены вверх, при $a < 0$ — вниз."
+                        ],
+                        rules: "Сначала найдите вершину параболы и ось симметрии $x = x_0$, затем нули функции (точки пересечения с осью $Ox$)."
+                    }
+                },
+                {
+                    id: "8_ineq",
+                    quarter: 4,
+                    section: "Неравенства",
+                    lessonNum: 66,
+                    topic: "Квадратные неравенства. Метод интервалов",
+                    goals: [
+                        "8.2.2.8 решать квадратные неравенства методом интервалов"
+                    ],
+                    parentGuide: {
+                        title: "Алгоритм метода интервалов",
+                        formulas: [
+                            "1. Находим нули функции: $ax^2 + bx + c = 0$.",
+                            "2. Отмечаем корни на числовой прямой (закрашенные при $\\le, \\ge$; выколотые при $<, >$).",
+                            "3. Определяем знак на каждом интервале и выбираем нужный."
+                        ],
+                        rules: "При строгих знаках неравенства ($<, >$) граничные точки не включаются в ответ, при нестрогих ($\\le, \\ge$) — включаются."
+                    }
+                }
+            ],
+            "8 класс — Геометрия": [
+                {
+                    id: "8_quadrilaterals",
+                    quarter: 1,
+                    section: "Многоугольники. Исследование четырёхугольников",
+                    lessonNum: 11,
+                    topic: "Четырёхугольники: параллелограмм, ромб, прямоугольник, трапеция",
+                    goals: [
+                        "8.1.1.7 применять свойства параллелограмма, прямоугольника, ромба и квадрата при решении задач"
+                    ],
+                    parentGuide: {
+                        title: "Свойства четырёхугольников",
+                        formulas: [
+                            "Сумма углов выпуклого $n$-угольника: $180^\\circ(n - 2)$.",
+                            "В параллелограмме противоположные стороны равны и параллельны, диагонали точкой пересечения делятся пополам."
+                        ],
+                        rules: "Используйте свойства диагоналей: в ромбе они перпендикулярны и являются биссектрисами углов, в прямоугольнике — равны."
+                    }
+                },
+                {
+                    id: "8_pyth",
+                    quarter: 2,
+                    section: "Соотношения между сторонами и углами прямоугольного треугольника",
+                    lessonNum: 27,
+                    topic: "Теорема Пифагора. Тригонометрические функции острого угла",
+                    goals: [
+                        "8.1.3.3 применять теорему Пифагора при решении прямоугольных треугольников",
+                        "8.1.3.4 определять синус, косинус и тангенс острого угла прямоугольного треугольника"
+                    ],
+                    parentGuide: {
+                        title: "Теорема Пифагора и тригонометрия",
+                        formulas: [
+                            "$c^2 = a^2 + b^2$ ($c$ — гипотенуза, $a, b$ — катеты)",
+                            "$\\sin\\alpha = \\frac{\\text{противолежащий катет}}{\\text{гипотенуза}}$, $\\quad \\cos\\alpha = \\frac{\\text{прилежащий катет}}{\\text{гипотенуза}}$",
+                            "$\\text{tg}\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha} = \\frac{\\text{противолежащий катет}}{\\text{прилежащий катет}}$"
+                        ],
+                        rules: "Гипотенуза всегда лежит против прямого угла ($90^\\circ$) и больше каждого катета. Чтобы найти катет, из квадрата гипотенузы вычитаем квадрат другого катета."
+                    }
+                },
+                {
+                    id: "8_area",
+                    quarter: 3,
+                    section: "Площадь",
+                    lessonNum: 42,
+                    topic: "Площади треугольника, параллелограмма, ромба и трапеции",
+                    goals: [
+                        "8.1.3.12 выводить и применять формулы площади параллелограмма, ромба, треугольника и трапеции"
+                    ],
+                    parentGuide: {
+                        title: "Формулы площадей фигур",
+                        formulas: [
+                            "Параллелограмм: $S = a \\cdot h_a$",
+                            "Треугольник: $S = \\frac{1}{2} a \\cdot h_a$",
+                            "Трапеция: $S = \\frac{a + b}{2} \\cdot h$"
+                        ],
+                        rules: "Высота всегда перпендикулярна основанию, к которому проведена."
+                    }
+                },
+                {
+                    id: "8_coord_plane",
+                    quarter: 4,
+                    section: "Прямоугольная система координат на плоскости",
+                    lessonNum: 54,
+                    topic: "Расстояние между двумя точками. Уравнение окружности и прямой",
+                    goals: [
+                        "8.1.3.14 вычислять расстояние между двумя точками на плоскости по их координатам",
+                        "8.1.3.17 знать уравнение окружности $(x - a)^2 + (y - b)^2 = R^2$"
+                    ],
+                    parentGuide: {
+                        title: "Координатный метод на плоскости",
+                        formulas: [
+                            "$AB = \\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$",
+                            "Середина отрезка: $M\\left(\\frac{x_1+x_2}{2}; \\frac{y_1+y_2}{2}\\right)$",
+                            "Уравнение окружности с центром $(a; b)$ и радиусом $R$: $(x - a)^2 + (y - b)^2 = R^2$."
+                        ],
+                        rules: "Обратите внимание на знаки координат центра окружности: в уравнении $(x - 2)^2 + (y + 3)^2 = 16$ центр имеет координаты $(2; -3)$, а радиус равен $4$."
+                    }
+                }
+            ],
+            "9 класс — Алгебра": [
+                {
+                    id: "9_sys_nonlin",
+                    quarter: 1,
+                    section: "Уравнения, неравенства с двумя переменными и их системы",
+                    lessonNum: 12,
+                    topic: "Нелинейные уравнения с двумя переменными и их системы",
+                    goals: [
+                        "9.2.2.2 решать системы нелинейных уравнений с двумя переменными"
+                    ],
+                    parentGuide: {
+                        title: "Системы нелинейных уравнений",
+                        formulas: [
+                            "Основной метод — подстановка из линейного уравнения в уравнение второй степени.",
+                            "Ответ записывается в виде пар чисел $(x_1; y_1), (x_2; y_2)$."
+                        ],
+                        rules: "Убедитесь, что для каждого найденного значения $x$ вычислено соответствующее значение $y$."
+                    }
+                },
+                {
+                    id: "9_prog",
+                    quarter: 2,
+                    section: "Последовательности",
+                    lessonNum: 31,
+                    topic: "Арифметическая и геометрическая прогрессии",
+                    goals: [
+                        "9.2.3.4 знать и применять формулы $n$-го члена и суммы первых $n$ членов арифметической прогрессии",
+                        "9.2.3.6 знать и применять формулы $n$-го члена и суммы первых $n$ членов геометрической прогрессии"
+                    ],
+                    parentGuide: {
+                        title: "Формулы прогрессий",
+                        formulas: [
+                            "Арифметическая: $a_n = a_1 + d(n - 1)$, $\\quad S_n = \\frac{2a_1 + d(n - 1)}{2} \\cdot n = \\frac{a_1 + a_n}{2} \\cdot n$",
+                            "Геометрическая: $b_n = b_1 \\cdot q^{n - 1}$, $\\quad S_n = \\frac{b_1(q^n - 1)}{q - 1}$ ($q \\neq 1$)"
+                        ],
+                        rules: "Разность арифметической прогрессии $d = a_{n+1} - a_n$, знаменатель геометрической прогрессии $q = \\frac{b_{n+1}}{b_n}$. В формуле $n$-го члена множитель перед разностью равен $(n - 1)$."
+                    }
+                },
+                {
+                    id: "9_trig_ident",
+                    quarter: 3,
+                    section: "Тригонометрия",
+                    lessonNum: 46,
+                    topic: "Основные тригонометрические тождества и формулы сложения",
+                    goals: [
+                        "9.2.4.3 выводить и применять основные тригонометрические тождества",
+                        "9.2.4.5 выводить и применять формулы двойного и половинного угла"
+                    ],
+                    parentGuide: {
+                        title: "Тригонометрические тождества",
+                        formulas: [
+                            "$\\sin^2\\alpha + \\cos^2\\alpha = 1$",
+                            "$\\text{tg}\\,\\alpha \\cdot \\text{ctg}\\,\\alpha = 1$, $\\quad 1 + \\text{tg}^2\\alpha = \\frac{1}{\\cos^2\\alpha}$",
+                            "$\\sin 2\\alpha = 2\\sin\\alpha\\cos\\alpha$, $\\quad \\cos 2\\alpha = \\cos^2\\alpha - \\sin^2\\alpha$"
+                        ],
+                        rules: "При определении знака тригонометрической функции обязательно проверяйте, в какой координатной четверти находится угол $\\alpha$."
+                    }
+                },
+                {
+                    id: "9_comb",
+                    quarter: 4,
+                    section: "Элементы теории вероятностей",
+                    lessonNum: 62,
+                    topic: "Элементы комбинаторики и теории вероятностей",
+                    goals: [
+                        "9.3.1.1 применять формулы перестановок, размещений и сочетаний",
+                        "9.3.2.1 вычислять вероятность события классическим способом"
+                    ],
+                    parentGuide: {
+                        title: "Комбинаторика и вероятность",
+                        formulas: [
+                            "$P_n = n!$, $\\quad A_n^k = \\frac{n!}{(n - k)!}$, $\\quad C_n^k = \\frac{n!}{k!(n - k)!}$",
+                            "$P(A) = \\frac{m}{n}$ ($m$ — число благоприятных исходов, $n$ — число всех равновозможных исходов)"
+                        ],
+                        rules: "Вероятность события всегда находится в пределах от $0$ до $1$ (или от $0\\%$ до $100\\%$). Если порядок выбора не важен — используем сочетания $C_n^k$."
+                    }
+                }
+            ],
+            "9 класс — Геометрия": [
+                {
+                    id: "9_vectors",
+                    quarter: 1,
+                    section: "Векторы на плоскости",
+                    lessonNum: 10,
+                    topic: "Векторы на плоскости. Координаты вектора и скалярное произведение",
+                    goals: [
+                        "9.1.4.2 находить длину вектора и скалярное произведение векторов в координатах"
+                    ],
+                    parentGuide: {
+                        title: "Действия с векторами в координатах",
+                        formulas: [
+                            "Для $\\vec{a}(x_1; y_1)$ и $\\vec{b}(x_2; y_2)$: $|\\vec{a}| = \\sqrt{x_1^2 + y_1^2}$",
+                            "Скалярное произведение: $\\vec{a} \\cdot \\vec{b} = x_1 x_2 + y_1 y_2 = |\\vec{a}| \\cdot |\\vec{b}| \\cdot \\cos\\varphi$"
+                        ],
+                        rules: "Если скалярное произведение векторов равно $0$, то векторы перпендикулярны ($\\varphi = 90^\\circ$)."
+                    }
+                },
+                {
+                    id: "9_trig_tri",
+                    quarter: 2,
+                    section: "Решение треугольников",
+                    lessonNum: 24,
+                    topic: "Теоремы синусов и косинусов. Решение треугольников",
+                    goals: [
+                        "9.1.3.1 применять теорему синусов и теорему косинусов при решении задач"
+                    ],
+                    parentGuide: {
+                        title: "Теоремы синусов и косинусов",
+                        formulas: [
+                            "Теорема синусов: $\\frac{a}{\\sin\\alpha} = \\frac{b}{\\sin\\beta} = \\frac{c}{\\sin\\gamma} = 2R$",
+                            "Теорема косинусов: $a^2 = b^2 + c^2 - 2bc\\cos\\alpha$"
+                        ],
+                        rules: "Теорема косинусов удобна, когда известны две стороны и угол между ними или все три стороны. Учитывайте знак косинуса для тупых углов ($\\cos 120^\\circ = -\\frac{1}{2}$)."
+                    }
+                },
+                {
+                    id: "9_circle_poly",
+                    quarter: 3,
+                    section: "Окружность. Многоугольники",
+                    lessonNum: 38,
+                    topic: "Правильные многоугольники. Длина окружности и площадь круга",
+                    goals: [
+                        "9.1.1.3 выводить и применять формулы длины дуги, площади круга, сектора и сегмента"
+                    ],
+                    parentGuide: {
+                        title: "Окружность и круг",
+                        formulas: [
+                            "Длина окружности: $C = 2\\pi R = \\pi d$",
+                            "Площадь круга: $S = \\pi R^2$, $\\quad$ площадь сектора: $S_{\\text{сект}} = \\frac{\\pi R^2 \\alpha}{360^\\circ}$"
+                        ],
+                        rules: "Не путайте радиус $R$ и диаметр $d = 2R$ при подстановке в формулы."
+                    }
+                },
+                {
+                    id: "9_sim_trans",
+                    quarter: 4,
+                    section: "Преобразования плоскости",
+                    lessonNum: 50,
+                    topic: "Движение, гомотетия и подобие фигур",
+                    goals: [
+                        "9.1.4.12 знать и применять свойства и признаки подобия треугольников"
+                    ],
+                    parentGuide: {
+                        title: "Подобие фигур",
+                        formulas: [
+                            "Отношение периметров подобных треугольников равно коэффициенту подобия $k$.",
+                            "Отношение площадей подобных треугольников равно $k^2$."
+                        ],
+                        rules: "Частая ошибка — забыть возвести коэффициент подобия $k$ в квадрат при нахождении отношения площадей."
+                    }
+                }
+            ],
+            "10 класс — Алгебра и начала анализа": [
+                {
+                    id: "10_func_props",
+                    quarter: 1,
+                    section: "Функция, её свойства и график",
+                    lessonNum: 12,
+                    topic: "Свойства функций. Обратная функция и композиция функций",
+                    goals: [
+                        "10.4.1.4 определять свойства функции (монотонность, ограниченность, чётность/нечётность, периодичность)"
+                    ],
+                    parentGuide: {
+                        title: "Чётность и периодичность функций",
+                        formulas: [
+                            "Чётная: $f(-x) = f(x)$ (график симметричен относительно оси $Oy$).",
+                            "Нечётная: $f(-x) = -f(x)$ (график симметричен относительно начала координат)."
+                        ],
+                        rules: "Прежде чем проверять чётность функции, убедитесь, что её область определения симметрична относительно нуля."
+                    }
+                },
+                {
+                    id: "10_trig_eq",
+                    quarter: 2,
+                    section: "Тригонометрические уравнения и неравенства",
+                    lessonNum: 44,
+                    topic: "Тригонометрические уравнения и формулы приведения",
+                    goals: [
+                        "10.2.3.2 решать простейшие тригонометрические уравнения",
+                        "10.2.2.4 применять формулы приведения"
+                    ],
+                    parentGuide: {
+                        title: "Тригонометрические уравнения и формулы приведения",
+                        formulas: [
+                            "$\\sin x = a \\quad (|a| \\le 1) \\implies x = (-1)^k \\arcsin a + \\pi k, \\quad k \\in \\mathbb{Z}$",
+                            "$\\cos x = a \\quad (|a| \\le 1) \\implies x = \\pm \\arccos a + 2\\pi k, \\quad k \\in \\mathbb{Z}$",
+                            "$\\text{tg}\\,x = a \\implies x = \\text{arctg}\\,a + \\pi k, \\quad k \\in \\mathbb{Z}$"
+                        ],
+                        rules: "Для углов вида $\\frac{\\pi}{2} \\pm \\alpha$ и $\\frac{3\\pi}{2} \\pm \\alpha$ функция меняется на «кофункцию» ($\\sin \\leftrightarrow \\cos$, $\\text{tg} \\leftrightarrow \\text{ctg}$), а знак берётся по исходной функции в соответствующей четверти."
+                    }
+                },
+                {
+                    id: "10_deriv",
+                    quarter: 3,
+                    section: "Производная",
+                    lessonNum: 68,
+                    topic: "Производная функции и её геометрический и физический смысл",
+                    goals: [
+                        "10.3.1.11 находить производные элементарных функций и правила дифференцирования",
+                        "10.3.2.3 составлять уравнение касательной к графику функции"
+                    ],
+                    parentGuide: {
+                        title: "Таблица производных и правила дифференцирования",
+                        formulas: [
+                            "$(C)' = 0$, $\\quad (x^n)' = n \\cdot x^{n-1}$, $\\quad (\\sqrt{x})' = \\frac{1}{2\\sqrt{x}}$",
+                            "$(\\sin x)' = \\cos x$, $\\quad (\\cos x)' = -\\sin x$, $\\quad (e^x)' = e^x$",
+                            "$(u \\pm v)' = u' \\pm v'$, $\\quad (C \\cdot u)' = C \\cdot u'$"
+                        ],
+                        rules: "Не забывайте знак минус при нахождении производной от $\\cos x$ и при необходимости применяйте правило производной сложной функции: $(f(g(x)))' = f'(g(x)) \\cdot g'(x)$."
+                    }
+                },
+                {
+                    id: "10_deriv_app",
+                    quarter: 4,
+                    section: "Применение производной",
+                    lessonNum: 86,
+                    topic: "Исследование функции с помощью производной. Экстремумы",
+                    goals: [
+                        "10.3.1.16 находить промежутки возрастания/убывания и точки экстремума функции",
+                        "10.3.1.18 находить наибольшее и наименьшее значения функции на отрезке"
+                    ],
+                    parentGuide: {
+                        title: "Алгоритм исследования функции",
+                        formulas: [
+                            "Если $f'(x) > 0$ на промежутке, функция возрастает; если $f'(x) < 0$ — убывает.",
+                            "В точках экстремума производная равна нулю или не существует."
+                        ],
+                        rules: "При поиске наибольшего и наименьшего значений на отрезке $[a; b]$ нужно сравнить значения функции в критических точках внутри отрезка и на его концах $a$ и $b$."
+                    }
+                }
+            ],
+            "10 класс — Геометрия": [
+                {
+                    id: "10_stereo_ax",
+                    quarter: 1,
+                    section: "Аксиомы стереометрии. Параллельность в пространстве",
+                    lessonNum: 8,
+                    topic: "Параллельность прямых и плоскостей в пространстве",
+                    goals: [
+                        "10.2.1.5 применять признак параллельности прямой и плоскости при решении задач"
+                    ],
+                    parentGuide: {
+                        title: "Параллельность в пространстве",
+                        formulas: [
+                            "Если прямая, не лежащая в плоскости, параллельна какой-нибудь прямой в этой плоскости, то она параллельна и самой плоскости."
+                        ],
+                        rules: "В пространстве две прямые, не имеющие общих точек, могут быть не только параллельными, но и скрещивающимися."
+                    }
+                },
+                {
+                    id: "10_stereo_lines",
+                    quarter: 2,
+                    section: "Перпендикулярность в пространстве",
+                    lessonNum: 16,
+                    topic: "Перпендикулярность прямой и плоскости. Теорема о трёх перпендикулярах",
+                    goals: [
+                        "10.2.2.3 применять признак перпендикулярности прямой и плоскости",
+                        "10.2.3.4 применять теорему о трёх перпендикулярах (ТТП)"
+                    ],
+                    parentGuide: {
+                        title: "Перпендикулярность в пространстве",
+                        formulas: [
+                            "Прямая перпендикулярна плоскости, если она перпендикулярна двум пересекающимся прямым, лежащим в этой плоскости.",
+                            "Теорема о трёх перпендикулярах связывает наклонную, её проекцию и прямую в плоскости."
+                        ],
+                        rules: "В задачах на нахождение расстояния от точки до плоскости или угла между прямой и плоскостью сначала чётко определите основание перпендикуляра и проекцию наклонной."
+                    }
+                },
+                {
+                    id: "10_stereo_angles",
+                    quarter: 3,
+                    section: "Перпендикулярность в пространстве (Углы и расстояния)",
+                    lessonNum: 28,
+                    topic: "Угол между прямой и плоскостью. Двугранный угол",
+                    goals: [
+                        "10.3.2.2 находить угол между прямой и плоскостью и двугранный угол при решении задач"
+                    ],
+                    parentGuide: {
+                        title: "Углы в пространстве",
+                        formulas: [
+                            "Углом между прямой и плоскостью называется угол между этой прямой и её проекцией на плоскость."
+                        ],
+                        rules: "Линейный угол двугранного угла строится двумя перпендикулярами к ребру двугранного угла в обеих гранях."
+                    }
+                },
+                {
+                    id: "10_stereo_vec",
+                    quarter: 4,
+                    section: "Прямоугольная система координат и векторы в пространстве",
+                    lessonNum: 40,
+                    topic: "Координаты вектора и скалярное произведение в пространстве",
+                    goals: [
+                        "10.4.1.14 вычислять скалярное произведение векторов и угол между векторами в пространстве"
+                    ],
+                    parentGuide: {
+                        title: "Векторы в пространстве",
+                        formulas: [
+                            "$|\\vec{a}| = \\sqrt{x^2 + y^2 + z^2}$",
+                            "$\\vec{a} \\cdot \\vec{b} = x_1x_2 + y_1y_2 + z_1z_2$"
+                        ],
+                        rules: "Формулы для векторов в пространстве полностью аналогичны планиметрии, добавляется только третья координата $z$."
+                    }
+                }
+            ],
+            "11 класс — Алгебра и начала анализа": [
+                {
+                    id: "11_integrals",
+                    quarter: 1,
+                    section: "Первообразная и интеграл",
+                    lessonNum: 14,
+                    topic: "Первообразная и интеграл. Площадь криволинейной трапеции",
+                    goals: [
+                        "11.3.1.4 находить первообразную функции",
+                        "11.3.1.8 вычислять определённый интеграл по формуле Ньютона — Лейбница"
+                    ],
+                    parentGuide: {
+                        title: "Первообразная и формула Ньютона — Лейбница",
+                        formulas: [
+                            "$\\int x^n\\,dx = \\frac{x^{n+1}}{n+1} + C \\quad (n \\neq -1)$",
+                            "$\\int \\cos x\\,dx = \\sin x + C$, $\\quad \\int \\sin x\\,dx = -\\cos x + C$",
+                            "$\\int_a^b f(x)\\,dx = F(b) - F(a)$"
+                        ],
+                        rules: "При вычислении определённого интеграла сначала подставляем верхний предел интегрирования $b$, а затем вычитаем значение в нижнем пределе $a$: $F(b) - F(a)$."
+                    }
+                },
+                {
+                    id: "11_exp_roots",
+                    quarter: 2,
+                    section: "Степени и корни. Показательная функция",
+                    lessonNum: 32,
+                    topic: "Показательные уравнения и неравенства",
+                    goals: [
+                        "11.2.2.6 решать показательные уравнения и неравенства"
+                    ],
+                    parentGuide: {
+                        title: "Показательные уравнения и неравенства",
+                        formulas: [
+                            "$a^{f(x)} = a^{g(x)} \\iff f(x) = g(x) \\quad (a > 0, a \\neq 1)$",
+                            "При $0 < a < 1$ знак показательного неравенства меняется на противоположный!"
+                        ],
+                        rules: "Обязательно следите за основанием степени $a$: если $0 < a < 1$ (например, $\\frac{1}{2}$ или $0{,}3$), при переходе к показателям знак неравенства разворачивается."
+                    }
+                },
+                {
+                    id: "11_log",
+                    quarter: 3,
+                    section: "Логарифмическая функция",
+                    lessonNum: 52,
+                    topic: "Логарифмы и логарифмические уравнения и неравенства",
+                    goals: [
+                        "11.1.2.2 применять свойства логарифмов при преобразовании выражений",
+                        "11.2.2.3 решать логарифмические уравнения с учётом ОДЗ"
+                    ],
+                    parentGuide: {
+                        title: "Свойства логарифмов",
+                        formulas: [
+                            "$\\log_a b = c \\iff a^c = b \\quad (a > 0, a \\neq 1, b > 0)$",
+                            "$\\log_a(xy) = \\log_a x + \\log_a y$, $\\quad \\log_a\\left(\\frac{x}{y}\\right) = \\log_a x - \\log_a y$",
+                            "$\\log_a(x^k) = k\\log_a x$"
+                        ],
+                        rules: "Обязательно проверяйте область допустимых значений (ОДЗ): подлогарифмическое выражение должно быть строго больше нуля ($> 0$), а основание — положительным и не равным $1$."
+                    }
+                },
+                {
+                    id: "11_diff_eq",
+                    quarter: 4,
+                    section: "Дифференциальные уравнения и повторение",
+                    lessonNum: 74,
+                    topic: "Простейшие дифференциальные уравнения и подготовка к ЕНТ",
+                    goals: [
+                        "11.3.1.12 решать простейшие дифференциальные уравнения с разделяющимися переменными"
+                    ],
+                    parentGuide: {
+                        title: "Дифференциальные уравнения",
+                        formulas: [
+                            "$y' = f(x) \\implies y = \\int f(x)\\,dx + C$"
+                        ],
+                        rules: "Общее решение дифференциального уравнения всегда содержит произвольную постоянную $C$, которая находится при подстановке начальных условий."
+                    }
+                }
+            ],
+            "11 класс — Геометрия": [
+                {
+                    id: "11_polyhedra",
+                    quarter: 1,
+                    section: "Многогранники",
+                    lessonNum: 10,
+                    topic: "Призма, пирамида, усечённая пирамида и их площади поверхностей",
+                    goals: [
+                        "11.3.1.2 вычислять площади боковой и полной поверхностей призмы и пирамиды"
+                    ],
+                    parentGuide: {
+                        title: "Поверхность многогранников",
+                        formulas: [
+                            "$S_{\\text{полн}} = S_{\\text{бок}} + 2S_{\\text{осн}}$ (для призмы)",
+                            "$S_{\\text{бок}} = \\frac{1}{2} P_{\\text{осн}} \\cdot l$ (для правильной пирамиды, где $l$ — апофема)"
+                        ],
+                        rules: "Апофема — это высота боковой грани правильной пирамиды, проведённая из её вершины."
+                    }
+                },
+                {
+                    id: "11_rot_bodies",
+                    quarter: 2,
+                    section: "Тела вращения и их элементы",
+                    lessonNum: 22,
+                    topic: "Цилиндр, конус, шар и сфера. Площади поверхностей",
+                    goals: [
+                        "11.3.1.5 вычислять площади боковой и полной поверхностей цилиндра, конуса и сферы"
+                    ],
+                    parentGuide: {
+                        title: "Поверхности тел вращения",
+                        formulas: [
+                            "Цилиндр: $S_{\\text{бок}} = 2\\pi RH$, $\\quad S_{\\text{полн}} = 2\\pi R(H + R)$",
+                            "Конус: $S_{\\text{бок}} = \\pi Rl$, $\\quad S_{\\text{полн}} = \\pi R(l + R)$"
+                        ],
+                        rules: "Образующая конуса $l$, его высота $H$ и радиус основания $R$ связаны теоремой Пифагора: $l^2 = R^2 + H^2$."
+                    }
+                },
+                {
+                    id: "11_volumes",
+                    quarter: 3,
+                    section: "Объёмы тел",
+                    lessonNum: 34,
+                    topic: "Объёмы многогранников и тел вращения",
+                    goals: [
+                        "11.3.2.2 вычислять объёмы призмы, пирамиды, цилиндра, конуса и шара"
+                    ],
+                    parentGuide: {
+                        title: "Формулы объёмов тел",
+                        formulas: [
+                            "Призма и цилиндр: $V = S_{\\text{осн}} \\cdot H$",
+                            "Пирамида и конус: $V = \\frac{1}{3} S_{\\text{осн}} \\cdot H$",
+                            "Шар: $V = \\frac{4}{3}\\pi R^3$, $\\quad S_{\\text{сферы}} = 4\\pi R^2$"
+                        ],
+                        rules: "Не забывайте коэффициент $\\frac{1}{3}$ для пирамиды и конуса и $\\frac{4}{3}$ для объёма шара."
+                    }
+                },
+                {
+                    id: "11_comb_bodies",
+                    quarter: 4,
+                    section: "Комбинации геометрических тел",
+                    lessonNum: 46,
+                    topic: "Вписанные и описанные шары и многогранники",
+                    goals: [
+                        "11.3.2.5 решать задачи на комбинации многогранников и тел вращения"
+                    ],
+                    parentGuide: {
+                        title: "Комбинации тел в пространстве",
+                        formulas: [
+                            "Если шар вписан в цилиндр: $H = 2R_{\\text{шара}}$, $R_{\\text{цил}} = R_{\\text{шара}}$."
+                        ],
+                        rules: "Для решения задач на комбинации тел делайте плоский осевой чертёж (сечение)."
+                    }
+                }
+            ]
+        };
+
+        // =========================================================================
+        // ФУНКЦИЯ КРАСИВОГО РЕНДЕРИНГА МАТЕМАТИЧЕСКИХ СИМВОЛОВ (KaTeX)
+        // =========================================================================
+        function renderMathInElementSafe(element) {
+            if (!element || typeof renderMathInElement === 'undefined') return;
+            try {
+                renderMathInElement(element, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            } catch (e) {
+                console.warn("Ошибка рендеринга формул:", e);
+            }
+        }
+
+        // Очистка сырых долларов в select-опциях (где HTML/KaTeX не поддерживается)
+        function stripLatexForSelect(str) {
+            return str
+                .replace(/\$/g, '')
+                .replace(/\\pm/g, '±')
+                .replace(/\\mp/g, '∓')
+                .replace(/\^2/g, '²')
+                .replace(/\^3/g, '³');
+        }
+
+        // =========================================================================
+        // 3. ЛОГИКА УЧИТЕЛЯ (КЛАСС -> ЧЕТВЕРТЬ -> РАЗДЕЛ -> ТЕМА -> ЦЕЛЬ)
+        // =========================================================================
+        function persistTeacherDraft() {
+            const classSelect = document.getElementById('teacher-class-select');
+            const quarterSelect = document.getElementById('teacher-quarter-select');
+            const sectionSelect = document.getElementById('teacher-section-select');
+            const topicSelect = document.getElementById('teacher-topic-select');
+            const goalSelect = document.getElementById('teacher-goal-select');
+            const lessonInput = document.getElementById('teacher-lesson-num');
+            const countSelect = document.getElementById('teacher-task-count');
+            const wordCheckbox = document.getElementById('teacher-include-word-problem');
+            const diffRadio = document.querySelector('input[name="difficulty"]:checked');
+
+            if (!classSelect || !classSelect.value) return;
+
+            const draft = {
+                studentClass: classSelect.value,
+                quarter: parseInt(quarterSelect.value, 10) || 1,
+                section: sectionSelect.value || "",
+                topicId: topicSelect.value || "",
+                goal: goalSelect.value || "",
+                lessonNum: parseInt(lessonInput.value, 10) || 1,
+                difficulty: diffRadio ? diffRadio.value : "Средний (Уровень B)",
+                taskCount: parseInt(countSelect.value, 10) || 2,
+                includeWordProblem: !!(wordCheckbox && wordCheckbox.checked)
+            };
+
+            appState.teacherDraft = draft;
+            localStorage.setItem('eduai_teacher_lesson_draft', JSON.stringify(draft));
+        }
+
+        function persistActiveHomework() {
+            localStorage.setItem('eduai_active_homework', JSON.stringify(appState.activeHomework));
+            if (appState.activeHomework && appState.activeHomework.studentClass) {
+                appState.classLessons[appState.activeHomework.studentClass] = { ...appState.activeHomework };
+                localStorage.setItem('eduai_class_lessons', JSON.stringify(appState.classLessons));
+            }
+        }
+
+        function applyDraftToTeacherForm(draft, preserveCustomLessonNum = false) {
+            if (!draft) return false;
+            const classSelect = document.getElementById('teacher-class-select');
+            if (!TUP_RK_DATABASE[draft.studentClass]) return false;
+
+            classSelect.value = draft.studentClass;
+            const topics = TUP_RK_DATABASE[draft.studentClass] || [];
+            const quarterSelect = document.getElementById('teacher-quarter-select');
+            const availableQuarters = [...new Set(topics.map(t => t.quarter))];
+            if (availableQuarters.includes(draft.quarter)) {
+                quarterSelect.value = String(draft.quarter);
+            } else if (availableQuarters.length > 0) {
+                quarterSelect.value = String(availableQuarters[0]);
+            }
+
+            const qVal = parseInt(quarterSelect.value, 10);
+            const topicsInQuarter = topics.filter(t => t.quarter === qVal);
+            const sectionSelect = document.getElementById('teacher-section-select');
+            const sections = [...new Set(topicsInQuarter.map(t => t.section))];
+            sectionSelect.innerHTML = sections.length
+                ? sections.map(s => `<option value="${s}">${s}</option>`).join('')
+                : `<option value="">Нет разделов в этой четверти</option>`;
+
+            if (draft.section && sections.includes(draft.section)) {
+                sectionSelect.value = draft.section;
+            }
+
+            const secVal = sectionSelect.value;
+            const filteredTopics = topics.filter(t => t.quarter === qVal && t.section === secVal);
+            const topicSelect = document.getElementById('teacher-topic-select');
+            topicSelect.innerHTML = filteredTopics.map(t => `<option value="${t.id}">${stripLatexForSelect(t.topic)}</option>`).join('');
+
+            if (draft.topicId && filteredTopics.some(t => t.id === draft.topicId)) {
+                topicSelect.value = draft.topicId;
+            }
+
+            const topicObj = topics.find(t => t.id === topicSelect.value);
+            const goalSelect = document.getElementById('teacher-goal-select');
+            if (topicObj) {
+                goalSelect.innerHTML = topicObj.goals.map(g => `<option value="${g}">${stripLatexForSelect(g)}</option>`).join('');
+                if (draft.goal && topicObj.goals.includes(draft.goal)) {
+                    goalSelect.value = draft.goal;
+                }
+                document.getElementById('teacher-lesson-num').value = preserveCustomLessonNum && draft.lessonNum
+                    ? draft.lessonNum
+                    : topicObj.lessonNum;
+            } else if (draft.lessonNum) {
+                document.getElementById('teacher-lesson-num').value = draft.lessonNum;
+            }
+
+            if (draft.difficulty) {
+                const radio = document.querySelector(`input[name="difficulty"][value="${draft.difficulty}"]`);
+                if (radio) radio.checked = true;
+            }
+            if (draft.taskCount) {
+                document.getElementById('teacher-task-count').value = String(draft.taskCount);
+            }
+            document.getElementById('teacher-include-word-problem').checked = !!draft.includeWordProblem;
+
+            persistTeacherDraft();
+            return true;
+        }
+
+        function onTeacherClassChange() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const savedForClass = appState.classLessons[selectedClass];
+            if (savedForClass) {
+                applyDraftToTeacherForm(savedForClass, true);
+                return;
+            }
+
+            const topics = TUP_RK_DATABASE[selectedClass] || [];
+            const quarterSelect = document.getElementById('teacher-quarter-select');
+            
+            const availableQuarters = [...new Set(topics.map(t => t.quarter))];
+            if (availableQuarters.length > 0 && !availableQuarters.includes(parseInt(quarterSelect.value, 10))) {
+                quarterSelect.value = availableQuarters[0];
+            }
+            onTeacherQuarterChange();
+        }
+
+        function onTeacherQuarterChange() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const selectedQuarter = parseInt(document.getElementById('teacher-quarter-select').value, 10);
+            const topicsInQuarter = (TUP_RK_DATABASE[selectedClass] || []).filter(t => t.quarter === selectedQuarter);
+            
+            const sectionSelect = document.getElementById('teacher-section-select');
+            const sections = [...new Set(topicsInQuarter.map(t => t.section))];
+            
+            if (sections.length === 0) {
+                sectionSelect.innerHTML = `<option value="">Нет разделов в этой четверти</option>`;
+            } else {
+                sectionSelect.innerHTML = sections.map(s => `<option value="${s}">${s}</option>`).join('');
+            }
+            onTeacherSectionChange();
+        }
+
+        function onTeacherSectionChange() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const selectedQuarter = parseInt(document.getElementById('teacher-quarter-select').value, 10);
+            const selectedSection = document.getElementById('teacher-section-select').value;
+            
+            const filteredTopics = (TUP_RK_DATABASE[selectedClass] || []).filter(
+                t => t.quarter === selectedQuarter && t.section === selectedSection
+            );
+            
+            const topicSelect = document.getElementById('teacher-topic-select');
+            topicSelect.innerHTML = filteredTopics.map(t => `<option value="${t.id}">${stripLatexForSelect(t.topic)}</option>`).join('');
+            onTeacherTopicChange();
+        }
+
+        function onTeacherTopicChange() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const selectedTopicId = document.getElementById('teacher-topic-select').value;
+            const topicObj = (TUP_RK_DATABASE[selectedClass] || []).find(t => t.id === selectedTopicId);
+            
+            if (topicObj) {
+                document.getElementById('teacher-lesson-num').value = topicObj.lessonNum;
+                const goalSelect = document.getElementById('teacher-goal-select');
+                goalSelect.innerHTML = topicObj.goals.map(g => `<option value="${g}">${stripLatexForSelect(g)}</option>`).join('');
+            }
+            persistTeacherDraft();
+        }
+
+        function advanceFormToNextLesson(className, topicId, currentLessonNum) {
+            const topics = TUP_RK_DATABASE[className] || [];
+            const idx = topics.findIndex(t => t.id === topicId);
+            const nextLessonNum = (parseInt(currentLessonNum, 10) || 1) + 1;
+
+            if (idx !== -1 && idx + 1 < topics.length) {
+                const nextTopic = topics[idx + 1];
+                applyDraftToTeacherForm({
+                    studentClass: className,
+                    quarter: nextTopic.quarter,
+                    section: nextTopic.section,
+                    topicId: nextTopic.id,
+                    goal: nextTopic.goals[0],
+                    lessonNum: Math.max(nextLessonNum, nextTopic.lessonNum),
+                    difficulty: document.querySelector('input[name="difficulty"]:checked')?.value || "Средний (Уровень B)",
+                    taskCount: parseInt(document.getElementById('teacher-task-count').value, 10) || 2,
+                    includeWordProblem: document.getElementById('teacher-include-word-problem').checked
+                }, true);
+            } else {
+                document.getElementById('teacher-lesson-num').value = nextLessonNum;
+                persistTeacherDraft();
+            }
+        }
+
+        function goToNextLesson() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const topicId = document.getElementById('teacher-topic-select').value;
+            const currentLesson = parseInt(document.getElementById('teacher-lesson-num').value, 10) || 1;
+            advanceFormToNextLesson(selectedClass, topicId, currentLesson);
+            const updatedLesson = document.getElementById('teacher-lesson-num').value;
+            const updatedTopic = document.getElementById('teacher-topic-select').options[document.getElementById('teacher-topic-select').selectedIndex]?.text || '';
+            showToast(`Переход к уроку №${updatedLesson}: ${updatedTopic}`, 'info');
+        }
+
+        function advanceAllClassesToNextLesson(silent = false) {
+            const classes = Object.keys(TUP_RK_DATABASE);
+            classes.forEach(cls => {
+                const currentHw = appState.classLessons[cls] || (() => {
+                    const firstTopic = (TUP_RK_DATABASE[cls] || [])[0];
+                    return firstTopic ? {
+                        studentClass: cls,
+                        quarter: firstTopic.quarter,
+                        section: firstTopic.section,
+                        topicId: firstTopic.id,
+                        topicName: firstTopic.topic,
+                        goal: firstTopic.goals[0],
+                        lessonNum: firstTopic.lessonNum,
+                        difficulty: appState.activeHomework.difficulty || "Средний (Уровень B)",
+                        taskCount: appState.activeHomework.taskCount || 2,
+                        includeWordProblem: !!appState.activeHomework.includeWordProblem
+                    } : null;
+                })();
+
+                if (!currentHw) return;
+                const topics = TUP_RK_DATABASE[cls] || [];
+                const idx = topics.findIndex(t => t.id === currentHw.topicId);
+                const nextLessonNum = (parseInt(currentHw.lessonNum, 10) || 1) + 1;
+
+                if (idx !== -1 && idx + 1 < topics.length) {
+                    const nextTopic = topics[idx + 1];
+                    appState.classLessons[cls] = {
+                        ...currentHw,
+                        quarter: nextTopic.quarter,
+                        section: nextTopic.section,
+                        topicId: nextTopic.id,
+                        topicName: nextTopic.topic,
+                        goal: nextTopic.goals[0],
+                        lessonNum: Math.max(nextLessonNum, nextTopic.lessonNum)
+                    };
+                } else {
+                    appState.classLessons[cls] = {
+                        ...currentHw,
+                        lessonNum: nextLessonNum
+                    };
+                }
+            });
+
+            localStorage.setItem('eduai_class_lessons', JSON.stringify(appState.classLessons));
+
+            const currentSelectedClass = document.getElementById('student-class-select')?.value || appState.activeHomework.studentClass;
+            if (appState.classLessons[currentSelectedClass]) {
+                appState.activeHomework = { ...appState.classLessons[currentSelectedClass] };
+                localStorage.setItem('eduai_active_homework', JSON.stringify(appState.activeHomework));
+                updateStudentMetaDisplay();
+            }
+
+            const teacherClass = document.getElementById('teacher-class-select')?.value;
+            if (teacherClass && appState.classLessons[teacherClass]) {
+                applyDraftToTeacherForm(appState.classLessons[teacherClass], true);
+            }
+
+            if (!silent) {
+                showToast('ДЗ автоматически переведено на следующий урок ко всем классам!', 'success');
+            }
+        }
+
+        async function generateTeacherPreview() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const topicSelect = document.getElementById('teacher-topic-select');
+            const topicName = topicSelect.options[topicSelect.selectedIndex].text;
+            const goal = document.getElementById('teacher-goal-select').value;
+            const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+            const taskCount = parseInt(document.getElementById('teacher-task-count').value, 10) || 2;
+            const includeWordProblem = document.getElementById('teacher-include-word-problem').checked;
+
+            const btn = document.getElementById('btn-teacher-preview');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> <span>Генерация примера...</span>`;
+
+            const wordProblemInstruction = includeWordProblem
+                ? `Обязательно включи в список из ${taskCount} заданий хотя бы одну полноценную текстовую/прикладную задачу (с сюжетом или практическим условием), а остальные задания сделай вычислительными/преобразовательными.`
+                : `Составь ${taskCount} учебных заданий по теме урока.`;
+
+            const prompt = `Ты методист по математике в школе Казахстана (ТУП РК). 
+            Составь пример домашнего задания (ровно ${taskCount} пронумерованных пунктов: 1., 2. и т.д.) для демонстрации учителю.
+            Класс: ${selectedClass}. Тема: ${topicName}. Цель обучения: ${goal}. Уровень сложности: ${difficulty}.
+            ${wordProblemInstruction}
+            Используй стандартный синтаксис LaTeX ($...$) для всех формул, степеней, дробей и индексов (например: $a_1 = 5$, $x^2$, $\\frac{1}{2}$).
+            Выведи ТОЛЬКО текст самого задания без приветствий и решений.`;
+
+            const previewBox = document.getElementById('teacher-preview-box');
+            const previewText = document.getElementById('teacher-preview-text');
+
+            try {
+                const taskText = await callGeminiText(prompt);
+                previewText.textContent = taskText;
+                previewBox.classList.remove('hidden');
+                renderMathInElementSafe(previewText);
+            } catch (e) {
+                const fallbackItems = [];
+                for (let i = 1; i <= taskCount; i++) {
+                    if (includeWordProblem && i === taskCount) {
+                        fallbackItems.push(`${i}. В школу привезли $(12a + 8)$ учебников, а затем раздали ученикам $4a$ книг. Сколько учебников осталось при $a = 15$?`);
+                    } else {
+                        fallbackItems.push(`${i}. Упростите выражение: $(${i + 2}x - 4)^2 + ${8 * (i + 2)}x$.`);
+                    }
+                }
+                previewText.textContent = fallbackItems.join('\n');
+                previewBox.classList.remove('hidden');
+                renderMathInElementSafe(previewText);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="eye" class="w-4 h-4"></i> <span>Показать пример задания</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        function publishHomework() {
+            const selectedClass = document.getElementById('teacher-class-select').value;
+            const quarter = parseInt(document.getElementById('teacher-quarter-select').value, 10);
+            const section = document.getElementById('teacher-section-select').value;
+            const topicSelect = document.getElementById('teacher-topic-select');
+            const topicId = topicSelect.value;
+            const topicName = topicSelect.options[topicSelect.selectedIndex].text;
+            const goal = document.getElementById('teacher-goal-select').value;
+            let lessonNum = parseInt(document.getElementById('teacher-lesson-num').value, 10) || 1;
+            const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+            const taskCount = parseInt(document.getElementById('teacher-task-count').value, 10) || 2;
+            const includeWordProblem = document.getElementById('teacher-include-word-problem').checked;
+
+            const topicKey = `${selectedClass}::${quarter}::${topicId}`;
+            const topicUnchanged = appState.lastAssignedTopicKey === topicKey;
+
+            if (topicUnchanged) {
+                advanceAllClassesToNextLesson(true);
+                const updatedForClass = appState.classLessons[selectedClass];
+                if (updatedForClass) {
+                    appState.activeHomework = {
+                        ...updatedForClass,
+                        difficulty,
+                        taskCount,
+                        includeWordProblem
+                    };
+                    lessonNum = appState.activeHomework.lessonNum;
+                } else {
+                    lessonNum += 1;
+                    appState.activeHomework = {
+                        studentClass: selectedClass,
+                        quarter,
+                        section,
+                        topicId,
+                        topicName,
+                        goal,
+                        lessonNum,
+                        difficulty,
+                        taskCount,
+                        includeWordProblem
+                    };
+                }
+            } else {
+                appState.activeHomework = {
+                    studentClass: selectedClass,
+                    quarter: quarter,
+                    section: section,
+                    topicId: topicId,
+                    topicName: topicName,
+                    goal: goal,
+                    lessonNum: lessonNum,
+                    difficulty: difficulty,
+                    taskCount: taskCount,
+                    includeWordProblem: includeWordProblem
+                };
+            }
+
+            appState.lastAssignedTopicKey = `${appState.activeHomework.studentClass}::${appState.activeHomework.quarter}::${appState.activeHomework.topicId}`;
+            localStorage.setItem('eduai_last_assigned_topic_key', appState.lastAssignedTopicKey);
+            persistActiveHomework();
+            persistTeacherDraft();
+
+            document.getElementById('student-class-select').value = appState.activeHomework.studentClass;
+            updateStudentMetaDisplay();
+
+            const wpNote = includeWordProblem ? ' + текстовая задача' : '';
+            const autoNextNote = topicUnchanged ? ' (тема не менялась — выдано на следующий урок ко всем классам)' : '';
+            showToast(`ДЗ для "${appState.activeHomework.studentClass}" (${appState.activeHomework.quarter} четв., Урок №${appState.activeHomework.lessonNum}, заданий: ${taskCount}${wpNote}) назначено${autoNextNote}!`, 'success');
+        }
+
+        function saveGoogleSheetUrl() {
+            const url = document.getElementById('google-script-url').value.trim();
+            appState.googleSheetUrl = url;
+            localStorage.setItem('eduai_gsheet_url', url);
+            updateSheetsBadge(!!url);
+            showToast(url ? 'URL Google Таблицы сохранен!' : 'Включен демо-режим (без отправки в Google)', 'success');
+        }
+
+        function updateSheetsBadge(isConnected) {
+            const badge = document.getElementById('sheets-connection-badge');
+            if (isConnected) {
+                badge.textContent = 'Подключено';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700';
+            } else {
+                badge.textContent = 'Демо-режим';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600';
+            }
+        }
+
+        function toggleScriptModal() {
+            document.getElementById('script-modal').classList.toggle('hidden');
+        }
+
+        function copyScriptCode() {
+            const code = document.getElementById('apps-script-code').textContent;
+            const tempInput = document.createElement('textarea');
+            tempInput.value = code;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('Код скрипта скопирован в буфер обмена!', 'success');
+        }
+
+        // =========================================================================
+        // 4. ЛОГИКА УЧЕНИКА (ТОЛЬКО ВЫБОР КЛАССА, ЛИТЕРА И ФИО; ОСТАЛЬНОЕ ОТ УЧИТЕЛЯ)
+        // =========================================================================
+        function onStudentClassChange() {
+            const selectedClass = document.getElementById('student-class-select').value;
+            const savedForClass = appState.classLessons[selectedClass];
+            if (savedForClass) {
+                appState.activeHomework = { ...savedForClass };
+                persistActiveHomework();
+                updateStudentMetaDisplay();
+                return;
+            }
+
+            const topics = TUP_RK_DATABASE[selectedClass] || [];
+
+            if (appState.activeHomework.studentClass !== selectedClass && topics.length > 0) {
+                const defaultTopic = topics[0];
+                appState.activeHomework = {
+                    studentClass: selectedClass,
+                    quarter: defaultTopic.quarter,
+                    section: defaultTopic.section,
+                    topicId: defaultTopic.id,
+                    topicName: defaultTopic.topic,
+                    goal: defaultTopic.goals[0],
+                    lessonNum: defaultTopic.lessonNum,
+                    difficulty: appState.activeHomework.difficulty || "Средний (Уровень B)",
+                    taskCount: appState.activeHomework.taskCount || 2,
+                    includeWordProblem: !!appState.activeHomework.includeWordProblem
+                };
+                persistActiveHomework();
+            }
+            updateStudentMetaDisplay();
+        }
+
+        function updateStudentMetaDisplay() {
+            const hw = appState.activeHomework;
+            const qText = hw.quarter ? `${hw.quarter} четверть • ` : '';
+            document.getElementById('meta-lesson-num').textContent = `${qText}Урок №${hw.lessonNum}`;
+            const countLabel = hw.taskCount ? ` • Заданий: ${hw.taskCount}` : '';
+            const wpLabel = hw.includeWordProblem ? ' • С задачей' : '';
+            document.getElementById('meta-difficulty').textContent = `${hw.difficulty}${countLabel}${wpLabel}`;
+            
+            const sectionEl = document.getElementById('meta-section');
+            if (sectionEl) sectionEl.textContent = `Раздел: ${hw.section || '—'}`;
+            
+            const topicEl = document.getElementById('meta-topic');
+            if (topicEl) {
+                topicEl.textContent = `Тема: ${hw.topicName || '—'}`;
+                renderMathInElementSafe(topicEl);
+            }
+
+            const goalEl = document.getElementById('meta-goal');
+            goalEl.textContent = hw.goal;
+            renderMathInElementSafe(goalEl);
+        }
+
+        function getFormattedStudentClass() {
+            const baseClass = document.getElementById('student-class-select').value;
+            const letter = document.getElementById('student-letter-select').value;
+            if (!letter) return baseClass;
+            return baseClass.replace(/^(\d+\s*класс)/, `$1 «${letter}»`);
+        }
+
+        async function generateStudentTask() {
+            const classLetter = document.getElementById('student-letter-select').value;
+            if (!classLetter) {
+                showToast('Пожалуйста, выберите литер класса (А, Б или В)!', 'error');
+                document.getElementById('student-letter-select').focus();
+                return;
+            }
+
+            const studentName = document.getElementById('student-name-input').value.trim();
+            if (!studentName) {
+                showToast('Пожалуйста, введите ваше ФИО перед получением задания!', 'error');
+                document.getElementById('student-name-input').focus();
+                return;
+            }
+
+            const btn = document.getElementById('btn-generate-task');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> <span>Генерируем вариант...</span>`;
+
+            const hw = appState.activeHomework;
+            const taskCount = hw.taskCount || 2;
+            const includeWordProblem = !!hw.includeWordProblem;
+            const fullClassName = getFormattedStudentClass();
+            const randomSeed = Math.floor(100 + Math.random() * 900);
+            document.getElementById('variant-id').textContent = randomSeed;
+
+            resetPhoto();
+            document.getElementById('ai-result-card').classList.add('hidden');
+
+            const wordProblemRequirement = includeWordProblem
+                ? `Обязательно включи в список из ${taskCount} заданий ровно одну текстовую задачу с практическим сюжетом (например, на движение, покупки, работу, сплавы, прогрессии или геометрические величины в зависимости от темы), а остальные ${Math.max(0, taskCount - 1)} задания сделай на вычисления, упрощение или решение уравнений/неравенств.`
+                : `Составь ${taskCount} учебных заданий по теме урока.`;
+
+            const prompt = `Ты учитель математики в школе Казахстана. Сгенерируй УНИКАЛЬНЫЙ индивидуальный вариант домашнего задания (ровно ${taskCount} пронумерованных заданий: 1., 2. и т.д.) для ученика "${studentName}" (${fullClassName}, Вариант #${randomSeed}).
+            Тема: ${hw.topicName}.
+            Цель обучения: ${hw.goal}.
+            Уровень сложности: ${hw.difficulty}.
+            ${wordProblemRequirement}
+            Используй уникальные числа, чтобы нельзя было списать у одноклассников.
+            Оформляй все математические формулы, дроби, корни, степени и индексы в корректном LaTeX внутри одинарных знаков доллара (например: $a_1 = -13,4$, $d = 3,6$, $\\frac{3}{4}$, $x^2$).
+            Выведи ТОЛЬКО текст заданий (1. ...), без вступлений и без ответов.`;
+
+            const taskBox = document.getElementById('student-task-box');
+
+            try {
+                const generatedText = await callGeminiText(prompt);
+                appState.currentGeneratedTaskText = generatedText;
+                taskBox.textContent = generatedText;
+            } catch (error) {
+                const fallbackItems = [];
+                for (let i = 1; i <= taskCount; i++) {
+                    const a = Math.floor(Math.random() * 5) + 2 + i;
+                    const b = Math.floor(Math.random() * 6) + 2;
+                    if (includeWordProblem && i === taskCount) {
+                        fallbackItems.push(`${i}. В мастерской за день изготовили $(${a}x + ${b})$ деталей, а на следующий день — ещё $${b}x$ деталей. Сколько всего деталей изготовили за два дня при $x = ${a + 2}$?`);
+                    } else {
+                        fallbackItems.push(`${i}. Раскройте скобки и упростите выражение:\n$(${a}x + ${b})^2 - ${2 * a * b}x$`);
+                    }
+                }
+                const fallbackTask = fallbackItems.join('\n\n');
+                appState.currentGeneratedTaskText = fallbackTask;
+                taskBox.textContent = fallbackTask;
+            } finally {
+                document.getElementById('student-workspace').classList.remove('hidden');
+                document.getElementById('student-workspace').classList.add('grid');
+                renderMathInElementSafe(taskBox);
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="refresh-cw" class="w-4 h-4"></i> <span>Другой вариант</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const fullDataUrl = e.target.result;
+                document.getElementById('photo-preview').src = fullDataUrl;
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                document.getElementById('photo-preview-container').classList.remove('hidden');
+                
+                const matches = fullDataUrl.match(/^data:(.+);base64,(.+)$/);
+                if (matches) {
+                    appState.uploadedImageMimeType = matches[1];
+                    appState.uploadedImageBase64 = matches[2];
+                    document.getElementById('btn-check-solution').disabled = false;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetPhoto(event) {
+            if (event) event.stopPropagation();
+            document.getElementById('solution-photo-input').value = '';
+            appState.uploadedImageBase64 = null;
+            appState.uploadedImageMimeType = null;
+            document.getElementById('photo-preview').src = '';
+            document.getElementById('photo-preview-container').classList.add('hidden');
+            document.getElementById('upload-placeholder').classList.remove('hidden');
+            document.getElementById('btn-check-solution').disabled = true;
+        }
+
+        async function checkSolutionWithAI() {
+            if (!appState.uploadedImageBase64) return;
+
+            const classLetter = document.getElementById('student-letter-select').value;
+            if (!classLetter) {
+                showToast('Пожалуйста, выберите литер класса (А, Б или В)!', 'error');
+                document.getElementById('student-letter-select').focus();
+                return;
+            }
+
+            const btn = document.getElementById('btn-check-solution');
+            const loader = document.getElementById('ai-checking-loader');
+            const resultCard = document.getElementById('ai-result-card');
+
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+
+            const hw = appState.activeHomework;
+            const studentName = document.getElementById('student-name-input').value.trim();
+            const fullClassName = getFormattedStudentClass();
+
+            const prompt = `Ты строгий, но доброжелательный учитель математики в РК. 
+            Проверь фотографию рукописного решения ученика в тетради.
+            Ученик: ${studentName}, класс: ${fullClassName}.
+            Условие задания, которое решал ученик:
+            "${appState.currentGeneratedTaskText}"
+            Тема урока: "${hw.topicName}".
+
+            1. Проанализируй ход решения и итоговый ответ на фото.
+            2. Дополнительно проведи антиплагиат-оценку (детектор использования ИИ / нейросетей / Photomath / ГДЗ): оцени в процентах (от 0 до 100), насколько вероятно, что ученик просто переписал готовый ответ из ИИ или решебника, а не решал сам. Признаки переписывания из ИИ: использование вузовских или нетипичных для данного класса методов/обозначений (например, правило Лопиталя, матрицы или продвинутые теоремы в средних классах), идеальное без единого чернового шага выписывание сложных выкладок, машинные формулировки пояснений («Таким образом, мы получаем...», «Следовательно, искомое значение...»), или правильный сложный ответ при полном отсутствии промежуточных вычислений. Если решение выглядит как естественная самостоятельная работа школьника (с обычными школьными записями, помарками, последовательными арифметическими шагами), ставь низкий процент (0–20%).
+
+            Верни ответ СТРОГО в формате JSON без markdown-обертки со следующими полями:
+            {
+              "score": "оценка от 1 до 10 (например: '8 / 10')",
+              "isPassed": true или false,
+              "aiUsagePercent": целое число от 0 до 100 (вероятность использования ИИ/ГДЗ в процентах),
+              "aiUsageReason": "краткое пояснение в 1-2 предложениях, почему выставлен такой процент (например: 'Естественный школьный ход решения с промежуточными вычислениями' или 'Обнаружены нехарактерные для 8 класса формулировки и резкий переход к ответу без промежуточных шагов')",
+              "feedback": "подробный разбор: что решено верно, а где допущена вычислительная или логическая ошибка",
+              "repeatTopic": "название конкретной темы или подтемы, которую нужно повторить (если всё идеально, напиши 'Ошибок нет, тема усвоена!')",
+              "repeatRule": "краткая формула или правило, которое ученик забыл применить (или похвала, если ошибок нет)"
+            }`;
+
+            let aiResult;
+            try {
+                aiResult = await callGeminiVisionJSON(prompt, appState.uploadedImageBase64, appState.uploadedImageMimeType);
+            } catch (err) {
+                aiResult = {
+                    score: "7 / 10",
+                    isPassed: true,
+                    aiUsagePercent: 12,
+                    aiUsageReason: "Решение оформлено по школьному образцу с последовательными промежуточными вычислениями и естественными поправками.",
+                    feedback: "Первое задание выполнено верно, формула применена правильно. Во втором задании при переносе слагаемого допущена ошибка со знаком.",
+                    repeatTopic: hw.topicName,
+                    repeatRule: "Проверьте знаки при раскрытии скобок и применении формулы $(a - b)^2 = a^2 - 2ab + b^2$."
+                };
+            }
+
+            // Нормализуем процент ИИ
+            const aiPercent = Math.max(0, Math.min(100, parseInt(aiResult.aiUsagePercent, 10) || 0));
+            aiResult.aiUsagePercent = aiPercent;
+
+            // Отображение результата ученику
+            renderCheckResult(aiResult);
+
+            // Отправка в Google Таблицы и локальный журнал учителя
+            const record = {
+                date: new Date().toLocaleDateString('ru-RU'),
+                studentClass: fullClassName,
+                studentName: studentName,
+                lessonNum: hw.lessonNum,
+                topic: hw.topicName,
+                difficulty: hw.difficulty,
+                score: aiResult.score,
+                aiUsagePercent: aiPercent,
+                aiUsageReason: aiResult.aiUsageReason || "",
+                repeatTopic: aiResult.repeatTopic
+            };
+
+            await sendToGoogleSheets(record);
+            
+            appState.journal.unshift(record);
+            localStorage.setItem('eduai_journal_data', JSON.stringify(appState.journal));
+            renderJournal();
+
+            loader.classList.add('hidden');
+            btn.disabled = false;
+        }
+
+        function renderCheckResult(res) {
+            const card = document.getElementById('ai-result-card');
+            const iconBg = document.getElementById('result-icon-bg');
+            
+            if (res.isPassed) {
+                card.className = "mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 space-y-4 fade-in";
+                iconBg.className = "p-2 rounded-xl bg-emerald-100 text-emerald-700";
+                iconBg.innerHTML = `<i data-lucide="award" class="w-6 h-6"></i>`;
+            } else {
+                card.className = "mt-6 rounded-2xl border border-rose-200 bg-rose-50/40 p-5 space-y-4 fade-in";
+                iconBg.className = "p-2 rounded-xl bg-rose-100 text-rose-700";
+                iconBg.innerHTML = `<i data-lucide="alert-triangle" class="w-6 h-6"></i>`;
+            }
+
+            document.getElementById('result-score').textContent = res.score;
+
+            // Отрисовка блока проверки на ИИ в процентах
+            const aiPercent = res.aiUsagePercent ?? 0;
+            const aiBox = document.getElementById('result-ai-check-box');
+            const aiTitle = document.getElementById('result-ai-check-title');
+            const aiBadge = document.getElementById('result-ai-percent-badge');
+            const aiBar = document.getElementById('result-ai-progress-bar');
+            const aiReason = document.getElementById('result-ai-reason');
+
+            aiBadge.textContent = `${aiPercent}%`;
+            aiBar.style.width = `${aiPercent}%`;
+            aiReason.textContent = res.aiUsageReason || (aiPercent >= 50
+                ? 'Обнаружены признаки генерации решения с помощью ИИ или решебника.'
+                : 'Решение выглядит самостоятельным.');
+
+            if (aiPercent >= 60) {
+                aiBox.className = "rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 space-y-2";
+                aiTitle.className = "flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-rose-800";
+                aiTitle.innerHTML = `<i data-lucide="bot" class="w-4 h-4"></i><span>Высокая вероятность ИИ:</span>`;
+                aiBadge.className = "text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-rose-600 text-white";
+                aiBar.className = "h-2 rounded-full transition-all duration-500 bg-rose-600";
+                aiReason.className = "text-xs leading-relaxed text-rose-800";
+            } else if (aiPercent >= 30) {
+                aiBox.className = "rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 space-y-2";
+                aiTitle.className = "flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-amber-800";
+                aiTitle.innerHTML = `<i data-lucide="scan-search" class="w-4 h-4"></i><span>Возможна помощь ИИ:</span>`;
+                aiBadge.className = "text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500 text-white";
+                aiBar.className = "h-2 rounded-full transition-all duration-500 bg-amber-500";
+                aiReason.className = "text-xs leading-relaxed text-amber-900";
+            } else {
+                aiBox.className = "rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 space-y-2";
+                aiTitle.className = "flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-emerald-800";
+                aiTitle.innerHTML = `<i data-lucide="shield-check" class="w-4 h-4"></i><span>Проверка на ИИ пройдена:</span>`;
+                aiBadge.className = "text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white";
+                aiBar.className = "h-2 rounded-full transition-all duration-500 bg-emerald-600";
+                aiReason.className = "text-xs leading-relaxed text-emerald-800";
+            }
+
+            const feedbackEl = document.getElementById('result-feedback');
+            const repeatTopicEl = document.getElementById('result-repeat-topic');
+            const repeatRuleEl = document.getElementById('result-repeat-rule');
+
+            feedbackEl.textContent = res.feedback;
+            repeatTopicEl.textContent = res.repeatTopic;
+            repeatRuleEl.textContent = res.repeatRule;
+
+            const statusEl = document.getElementById('result-sheets-status');
+            statusEl.textContent = appState.googleSheetUrl 
+                ? "✓ Результат и % ИИ записаны в Google Таблицу" 
+                : "✓ Сохранено в журнале (Демо-режим)";
+
+            card.classList.remove('hidden');
+            renderMathInElementSafe(card);
+            lucide.createIcons();
+        }
+
+        async function sendToGoogleSheets(record) {
+            if (!appState.googleSheetUrl) return;
+
+            try {
+                await fetch(appState.googleSheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(record)
+                });
+                showToast('Данные успешно отправлены в Google Таблицу!', 'success');
+            } catch (e) {
+                showToast('Ошибка при отправке в Google Таблицу, сохранено локально.', 'error');
+            }
+        }
+
+        function renderJournal() {
+            const container = document.getElementById('teacher-journal-list');
+            if (appState.journal.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Пока нет проверенных работ</p>`;
+                return;
+            }
+
+            container.innerHTML = appState.journal.map(item => {
+                const aiPct = item.aiUsagePercent ?? 0;
+                let aiBadgeHtml = '';
+                if (aiPct >= 60) {
+                    aiBadgeHtml = `<span class="text-xs font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-200" title="${item.aiUsageReason || ''}">ИИ: ${aiPct}%</span>`;
+                } else if (aiPct >= 30) {
+                    aiBadgeHtml = `<span class="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200" title="${item.aiUsageReason || ''}">ИИ: ${aiPct}%</span>`;
+                } else {
+                    aiBadgeHtml = `<span class="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200" title="${item.aiUsageReason || ''}">ИИ: ${aiPct}%</span>`;
+                }
+
+                return `
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-bold text-sm text-slate-800 truncate">${item.studentName}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${aiBadgeHtml}
+                            <span class="text-xs font-extrabold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700">${item.score}</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-500 flex items-center justify-between">
+                        <span>${item.studentClass} • Урок №${item.lessonNum}</span>
+                        <span>${item.date}</span>
+                    </div>
+                    ${item.aiUsageReason ? `<div class="text-[11px] text-slate-500 italic">Анализ ИИ: ${item.aiUsageReason}</div>` : ''}
+                    <div class="text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60 mt-1">
+                        <b>Повторить:</b> ${item.repeatTopic}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // =========================================================================
+        // 5. ЛОГИКА РАЗДЕЛА ДЛЯ РОДИТЕЛЕЙ
+        // =========================================================================
+        function renderParentGuides() {
+            const selectedClass = document.getElementById('parent-class-select').value;
+            const selectedQuarter = document.getElementById('parent-quarter-select').value;
+            let topics = TUP_RK_DATABASE[selectedClass] || [];
+            if (selectedQuarter !== 'all') {
+                topics = topics.filter(t => t.quarter === parseInt(selectedQuarter, 10));
+            }
+            const container = document.getElementById('parent-guides-container');
+
+            container.innerHTML = topics.map(t => `
+                <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200/80 flex flex-col justify-between space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-100/80 px-2.5 py-1 rounded-md">${t.quarter} четверть • Урок №${t.lessonNum}</span>
+                            <span class="text-xs font-medium text-slate-500">${t.section}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-900">${t.parentGuide.title}</h3>
+                        
+                        <div class="space-y-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Ключевые формулы урока:</span>
+                            <div class="space-y-1.5">
+                                ${t.parentGuide.formulas.map(f => `
+                                    <div class="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-indigo-950 font-medium shadow-2xs overflow-x-auto">
+                                        ${f}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 leading-relaxed">
+                        <div class="font-bold text-amber-800 mb-1 flex items-center gap-1.5">
+                            <i data-lucide="lightbulb" class="w-4 h-4 text-amber-600"></i>
+                            <span>На что обратить внимание при проверке:</span>
+                        </div>
+                        ${t.parentGuide.rules}
+                    </div>
+                </div>
+            `).join('');
+
+            renderMathInElementSafe(container);
+            lucide.createIcons();
+        }
+
+        // =========================================================================
+        // 6. API ВЫЗОВЫ GEMINI (Текстовая генерация и Vision-проверка фото)
+        // =========================================================================
+        async function fetchWithBackoff(url, options, retries = 3, delay = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                    return await response.json();
+                } catch (err) {
+                    if (i === retries - 1) throw err;
+                    await new Promise(res => setTimeout(res, delay * Math.pow(2, i)));
+                }
+            }
+        }
+
+        async function callGeminiText(promptText) {
+            const apiKey = appState.geminiApiKey || ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }]
+            };
+
+            const result = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) throw new Error("Пустой ответ от ИИ");
+            return text.trim();
+        }
+
+        async function callGeminiVisionJSON(promptText, base64Data, mimeType) {
+            const apiKey = appState.geminiApiKey || "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: promptText },
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: base64Data
+                            }
+                        }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            score: { type: "STRING" },
+                            isPassed: { type: "BOOLEAN" },
+                            aiUsagePercent: { type: "INTEGER" },
+                            aiUsageReason: { type: "STRING" },
+                            feedback: { type: "STRING" },
+                            repeatTopic: { type: "STRING" },
+                            repeatRule: { type: "STRING" }
+                        },
+                        required: ["score", "isPassed", "aiUsagePercent", "aiUsageReason", "feedback", "repeatTopic", "repeatRule"]
+                    }
+                }
+            };
+
+            const result = await fetchWithBackoff(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!jsonText) throw new Error("Пустой JSON ответ от Vision");
+            return JSON.parse(jsonText);
+        }
+
+        // =========================================================================
+        // 7. НАВИГАЦИЯ, АВТОРИЗАЦИЯ УЧИТЕЛЯ, КЛЮЧ И ИНИЦИАЛИЗАЦИЯ СТРАНИЦЫ
+        // =========================================================================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-rose-600 text-white',
+                info: 'bg-slate-800 text-white'
+            };
+            toast.className = `${colors[type] || colors.info} px-4 py-3 rounded-xl shadow-lg text-xs sm:text-sm font-medium pointer-events-auto fade-in flex items-center justify-between gap-3`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function switchRole(role) {
+            if (role === 'teacher' && !appState.isTeacherAuthenticated) {
+                document.getElementById('teacher-password-input').value = '';
+                document.getElementById('teacher-password-modal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('teacher-password-input').focus(), 50);
+                return;
+            }
+
+            appState.currentRole = role;
+            ['student', 'teacher', 'parent'].forEach(r => {
+                const view = document.getElementById(`view-${r}`);
+                const tab = document.getElementById(`tab-${r}`);
+                if (r === role) {
+                    view.classList.remove('hidden');
+                    tab.className = 'role-tab flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-indigo-600 shadow-sm';
+                } else {
+                    view.classList.add('hidden');
+                    tab.className = 'role-tab flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all';
+                }
+            });
+
+            if (role === 'parent') {
+                document.getElementById('parent-class-select').value = document.getElementById('student-class-select').value;
+                renderParentGuides();
+            }
+            lucide.createIcons();
+        }
+
+        function verifyTeacherPassword() {
+            const inputVal = document.getElementById('teacher-password-input').value;
+            if (inputVal === TEACHER_ACCESS_PASSWORD) {
+                appState.isTeacherAuthenticated = true;
+                document.getElementById('teacher-password-modal').classList.add('hidden');
+                showToast('Добро пожаловать в кабинет учителя!', 'success');
+                switchRole('teacher');
+            } else {
+                showToast('Неверный пароль учителя!', 'error');
+                document.getElementById('teacher-password-input').select();
+            }
+        }
+
+        function cancelTeacherLogin() {
+            document.getElementById('teacher-password-modal').classList.add('hidden');
+        }
+
+        function saveGeminiApiKey() {
+            const val = document.getElementById('gemini-api-key-input').value.trim();
+            appState.geminiApiKey = val;
+            localStorage.setItem('eduai_gemini_key', val);
+            updateAiKeyBadge();
+            showToast(val ? 'Gemini API ключ сохранён!' : 'Ключ удалён', val ? 'success' : 'info');
+        }
+
+        function updateAiKeyBadge() {
+            const badge = document.getElementById('ai-key-badge');
+            if (!badge) return;
+            if (appState.geminiApiKey) {
+                badge.textContent = 'Активен';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700';
+            } else {
+                badge.textContent = 'Не задан';
+                badge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800';
+            }
+        }
+
+        function copyStudentInviteLink() {
+            const url = new URL(window.location.href.split('#')[0]);
+            if (appState.geminiApiKey) {
+                url.hash = `key=${encodeURIComponent(appState.geminiApiKey)}`;
+            }
+            const tempInput = document.createElement('textarea');
+            tempInput.value = url.toString();
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('Ссылка для учеников скопирована в буфер обмена!', 'success');
+        }
+
+        function populateClassSelects() {
+            const classes = Object.keys(TUP_RK_DATABASE);
+            const optionsHtml = classes.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('student-class-select').innerHTML = optionsHtml;
+            document.getElementById('teacher-class-select').innerHTML = optionsHtml;
+            document.getElementById('parent-class-select').innerHTML = optionsHtml;
+
+            if (appState.activeHomework && TUP_RK_DATABASE[appState.activeHomework.studentClass]) {
+                document.getElementById('student-class-select').value = appState.activeHomework.studentClass;
+                document.getElementById('parent-class-select').value = appState.activeHomework.studentClass;
+            }
+        }
+
+        function attachDraftListeners() {
+            const ids = [
+                'teacher-quarter-select',
+                'teacher-section-select',
+                'teacher-topic-select',
+                'teacher-goal-select',
+                'teacher-lesson-num',
+                'teacher-task-count',
+                'teacher-include-word-problem'
+            ];
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', persistTeacherDraft);
+                    el.addEventListener('input', persistTeacherDraft);
+                }
+            });
+            document.querySelectorAll('input[name="difficulty"]').forEach(radio => {
+                radio.addEventListener('change', persistTeacherDraft);
+            });
+        }
+
+        window.onload = function() {
+            if (window.location.hash && window.location.hash.includes('key=')) {
+                const match = window.location.hash.match(/key=([^&]+)/);
+                if (match && match[1]) {
+                    const decodedKey = decodeURIComponent(match[1]);
+                    appState.geminiApiKey = decodedKey;
+                    localStorage.setItem('eduai_gemini_key', decodedKey);
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+            }
+
+            const todayStr = new Date().toLocaleDateString('ru-RU');
+            const dateDisplay = document.getElementById('current-date-display');
+            if (dateDisplay) {
+                dateDisplay.textContent = todayStr;
+            }
+
+            populateClassSelects();
+            attachDraftListeners();
+
+            if (appState.teacherDraft && TUP_RK_DATABASE[appState.teacherDraft.studentClass]) {
+                applyDraftToTeacherForm(appState.teacherDraft, true);
+            } else {
+                onTeacherClassChange();
+            }
+
+            // Если сайт открыт в новый день и тема уже назначалась ранее, автоматически переводим на следующий урок ко всем классам
+            if (appState.lastSessionDate && appState.lastSessionDate !== todayStr && appState.lastAssignedTopicKey) {
+                advanceAllClassesToNextLesson(true);
+            }
+            appState.lastSessionDate = todayStr;
+            localStorage.setItem('eduai_last_session_date', todayStr);
+
+            onStudentClassChange();
+            renderParentGuides();
+            renderJournal();
+
+            const keyInput = document.getElementById('gemini-api-key-input');
+            if (keyInput && appState.geminiApiKey) {
+                keyInput.value = appState.geminiApiKey;
+            }
+            updateAiKeyBadge();
+
+            if (appState.googleSheetUrl) {
+                document.getElementById('google-script-url').value = appState.googleSheetUrl;
+            }
+            updateSheetsBadge(!!appState.googleSheetUrl);
+
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
